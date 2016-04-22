@@ -189,9 +189,31 @@ def runAFL(cmd=None):
 
 def printHelp():
     print("autoPwn")
-    print("     s == fuzzer status")
-    print("     q == quit")
+    print("     s == fuzzer (s)tatus")
+    print("     e == collect (e)xploits")
+    print("     q == (q)uit")
     print("")
+
+def collectExploits():
+        exploits = os.path.abspath('exploits')
+        subprocess.check_output("afl-collect -e gdb_script -j {0} -m -r -rr {1} {4} -- {2} {3}".format(config['threads'],config['outDir'],config['target'],config['cmdline'],exploits),shell=True)
+        exploitMin = os.path.abspath("exploit_min")
+        
+        try:
+            os.mkdir(exploitMin)
+        except:
+            pass
+
+        for exp in glob.glob(os.path.join(exploits,"S*")):
+            print("Checking",exp)
+            base = os.path.basename(exp)
+            o = subprocess.check_output("afl-tmin -i {0} -o {1} -Q -- {2} {3}".format(exp,os.path.join(exploitMin,base),config['target'],config['cmdline']),shell=True)
+            print(o.decode('ascii'))
+
+        shutil.rmtree(exploits)
+
+        print("Completed. Exploits in directory {0}".format(exploitMin))
+
 
 preChecks()
 
@@ -220,3 +242,7 @@ while True:
     elif i == "s" or i == "status":
         status = subprocess.check_output("afl-whatsup {0}".format(config['outDir']),shell=True)
         print(status.decode('ascii'))
+
+    elif i == "e":
+        print("Collecting viable exploits")
+        collectExploits()
