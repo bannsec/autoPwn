@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+
+import os.path
+import shutil
+import multiprocessing
+import subprocess
+import signal
+import re
+import glob
+
+CHECK_INTERVAL = 5
+
+def checkFuzzerStatus(signum, frame):
+    print("Checking status of fuzzer")
+    # NOTE: Assuming the only smart fuzzer will allways be SESSION000
+    global config
+    fuzzer_stats_file = os.path.join(config['outDir'],"SESSION000","fuzzer_stats")
+    with open(fuzzer_stats_file,"r") as f:
+        fuzzer_stats = f.read()
+
+    cycles_done = int(re.search("\ncycles_done +: (\d+)\n",fuzzer_stats).group(1))
+
+    # Have we completed another cycle?
+    if cycles_done > config['cycles_done']:
+        print("We completed another cycle")
+        config['cycles_done'] = cycles_done
+        newCycle()
+
+    # Reset our alarm
+    signal.alarm(CHECK_INTERVAL)
+
+def newCycle():
+    global config
+    # Perform cleaning actions and start up the next cycle
+    
+    print("Pausing AFL")
+    # First off, shut down our current fuzzing
+    subprocess.check_output("afl-multikill")
+    
+    # Grab the active queues
+    # TODO: Change this to be pythonic so that it'll work more generally...
+    tmpDir = os.path.abspath('tmpOut')
+    
+    os.mkdir(tmpDir)
+    
+    print("Copying queues")
+    # Copy over the queues
+    queue_files = glob.glob("out/*/queue/*")
+    # Uniquely indexing for now
+    i = 0
+    for f in queue_files:
+        base = os.path.basename(f)
+        base += "_{0}".format(i)
+        shutil.copyfile(f,os.path.join(tmpDir,base))
+        i += 1
+
+    print("Minimizing corpus")
+    # Minimize the corpus
+    tmpDirCMin = os.path.abspath('tmpOut.cmin')
+    os.mkdir(tmpDirCMin)
+    # TODO: Add non-qemu here
+    subprocess.check_output("afl-cmin -i {0} -o {1} -Q -- {2} {3}".format(tmpDir,tmpDirCMin,config['target'],config['cmdline']),shell=True)
+
+    # Done w/ tmpDir
+    shutil.rmtree(tmpDir)
+
+    
+
+    print("Done")
+
+def preChecks():
+    # Checking for files that are needed
+    if shutil.which("afl-fuzz") == None:
+        print("Must have afl-fuzz installed: http://lcamtuf.coredump.cx/afl/")
+        exit(1)
+    if shutil.which("afl-multicore") == None:
+        print("Must have afl-utils installed: https://github.com/rc0r/afl-utils")
+        exit(1)
+
+def getConfig():
+    config = {}
+    config['cycles_done'] = 0
+    print("Setting up fuzz configuration")
+
+    target = input("Target Binary (full or relative path): ")
+    # Change it to abs path
+    target = os.path.abspath(target)
+    config["target"] = target
+    
+    # Ensure the file exists
+    if not os.path.isfile(target):
+        print("That file doesn't appear to exist...")
+        exit(1)
+
+
+    cmdline = input("Command line args: ")
+    config["cmdline"] = cmdline
+
+
+    defaultThreads = multiprocessing.cpu_count()
+    threads = input("Number of cores ({0}): ".format(defaultThreads))
+    threads = defaultThreads if threads == "" else int(threads)
+    config["threads"] = threads
+ 
+
+    inDir = input("Test Case Dir ('in/'): ")
+    inDir = "in" if inDir == "" else inDir
+    inDir = os.path.abspath(inDir)
+    config["inDir"] = inDir
+
+
+    outDir = input("Test Case Dir ('out/'): ")
+    outDir = "out" if outDir == "" else outDir
+    outDir = os.path.abspath(outDir)
+    config["outDir"] = outDir
+
+    
+
+    return config
+
+
+def writeConfig(config):
+    with open("autoPwn.config","w") as f:
+        f.write("[afl.dirs]\n")
+        f.write("input = {0}\n".format(config["inDir"]))
+        f.write("output = {0}\n".format(config["outDir"]))
+        f.write("\n[target]\n")
+        f.write("target = {0}\n".format(config["target"]))
+        f.write("cmdline = {0}\n".format(config["cmdline"]))
+        f.write("\n[afl.ctrl]\n")
+        f.write("file = \n")
+        f.write("timeout = 200+\n")
+        f.write("mem_limit = 150\n")
+        f.write("qemu = on\n")
+        f.write("cpu_affinity = {0}".format(' '.join([str(x) for x in range(config['threads'])])) + "\n")
+        f.write("\n[afl.behavior]\n")
+        f.write("dirty = off\n")
+        f.write("dumb = off\n")
+        f.write("\n[job]\n")
+        f.write("session = SESSION\n")
+        f.write("slave_only = off\n")
+        f.write("interactive = off\n")
+        
+
+preChecks()
+
+config = getConfig()
+
+writeConfig(config)
+
+print("Starting fuzz")
+subprocess.check_output("afl-multicore -c autoPwn.config start {0}".format(config['threads']),shell=True)
+# It adds our python instance into the kill file too... Let's remove that :-)
+try:
+    subprocess.check_output("grep -v {0} /tmp/afl_multicore.PGID.SESSION > /tmp/afl_multicore.PGID.SESSION2".format(os.getpgid(0)),shell=True)
+except:
+    pass
+subprocess.check_output("mv /tmp/afl_multicore.PGID.SESSION2 /tmp/afl_multicore.PGID.SESSION",shell=True)
+
+# Start up our watcher
+signal.signal(signal.SIGALRM, checkFuzzerStatus)
+signal.alarm(CHECK_INTERVAL)
+
+while True:
+    i = input("autoPwn> ")
+    print("Got input {0}".format(i))
+
