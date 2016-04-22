@@ -11,7 +11,6 @@ import glob
 CHECK_INTERVAL = 5
 
 def checkFuzzerStatus(signum, frame):
-    print("Checking status of fuzzer")
     # NOTE: Assuming the only smart fuzzer will allways be SESSION000
     global config
     fuzzer_stats_file = os.path.join(config['outDir'],"SESSION000","fuzzer_stats")
@@ -35,8 +34,9 @@ def newCycle():
     
     print("Pausing AFL")
     # First off, shut down our current fuzzing
-    subprocess.check_output("afl-multikill")
-    
+    #subprocess.check_output("afl-multikill")
+    subprocess.check_output("killall afl-fuzz",shell=True)
+
     # Grab the active queues
     # TODO: Change this to be pythonic so that it'll work more generally...
     tmpDir = os.path.abspath('tmpOut')
@@ -64,7 +64,41 @@ def newCycle():
     # Done w/ tmpDir
     shutil.rmtree(tmpDir)
 
-    
+
+    # Optimize test cases
+    print("Optimizing test cases")
+    tmpDirTMin = os.path.abspath('tmpOut.tmin')
+    os.mkdir(tmpDirTMin)
+
+    for test_case in glob.glob(os.path.join(tmpDirCMin,"*")):
+        # TODO: Add non-qemu here
+        print("Optimizing test case {0}".format(os.path.basename(test_case)))
+        outFile = os.path.join(tmpDirTMin,os.path.basename(test_case))
+        subprocess.check_output("afl-tmin -i \"{0}\" -o \"{1}\" -Q -- {2} {3}".format(test_case,outFile,config['target'],config['cmdline']),shell=True)
+
+
+    shutil.rmtree(tmpDirCMin)
+
+    # Re-seed
+    print("Re-seeding")
+    for seed in glob.glob("out/*/queue/*"):
+        os.remove(seed)
+
+    i = 0
+    for queue in glob.glob("out/*/queue"):
+        for seed in glob.glob(os.path.join(tmpDirTMin,"*")):
+            base = os.path.basename(seed)
+            base = base.split("_")[0] # Little bit of cleanup
+            shutil.copyfile(seed,os.path.join(queue,base)) 
+            print("Copying '{0}' to '{1}'".format(seed,os.path.join(queue,base)))
+            i += 1
+
+    # Remove tmpdir
+    shutil.rmtree(tmpDirTMin)
+
+    # Resume
+    print("Resuming search")
+    runAFL('resume')
 
     print("Done")
 
@@ -142,6 +176,18 @@ def writeConfig(config):
         f.write("interactive = off\n")
         
 
+def runAFL(cmd=None):
+    cmd = "start" if cmd is None else cmd
+
+    subprocess.check_output("afl-multicore -c autoPwn.config {1} {0}".format(config['threads'],cmd),shell=True)
+    # It adds our python instance into the kill file too... Let's remove that :-)
+    try:
+        subprocess.check_output("grep -v {0} /tmp/afl_multicore.PGID.SESSION > /tmp/afl_multicore.PGID.SESSION2".format(os.getpgid(0)),shell=True)
+    except:
+        pass
+    subprocess.check_output("mv /tmp/afl_multicore.PGID.SESSION2 /tmp/afl_multicore.PGID.SESSION",shell=True)
+
+
 preChecks()
 
 config = getConfig()
@@ -149,19 +195,17 @@ config = getConfig()
 writeConfig(config)
 
 print("Starting fuzz")
-subprocess.check_output("afl-multicore -c autoPwn.config start {0}".format(config['threads']),shell=True)
-# It adds our python instance into the kill file too... Let's remove that :-)
-try:
-    subprocess.check_output("grep -v {0} /tmp/afl_multicore.PGID.SESSION > /tmp/afl_multicore.PGID.SESSION2".format(os.getpgid(0)),shell=True)
-except:
-    pass
-subprocess.check_output("mv /tmp/afl_multicore.PGID.SESSION2 /tmp/afl_multicore.PGID.SESSION",shell=True)
+runAFL()
 
 # Start up our watcher
 signal.signal(signal.SIGALRM, checkFuzzerStatus)
 signal.alarm(CHECK_INTERVAL)
 
 while True:
-    i = input("autoPwn> ")
-    print("Got input {0}".format(i))
+    i = input("autoPwn> ").lower()
+
+    if i == "q" or i == "quit":
+        subprocess.check_output("killall afl-fuzz",shell=True)
+        print("Bye!")
+        exit(0)
 
