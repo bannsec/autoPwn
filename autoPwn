@@ -90,7 +90,6 @@ def newCycle():
             base = os.path.basename(seed)
             base = base.split("_")[0] # Little bit of cleanup
             shutil.copyfile(seed,os.path.join(queue,base)) 
-            print("Copying '{0}' to '{1}'".format(seed,os.path.join(queue,base)))
             i += 1
 
     # Remove tmpdir
@@ -188,6 +187,12 @@ def runAFL(cmd=None):
     subprocess.check_output("mv /tmp/afl_multicore.PGID.SESSION2 /tmp/afl_multicore.PGID.SESSION",shell=True)
 
 
+def printHelp():
+    print("autoPwn")
+    print("     s == fuzzer status")
+    print("     q == quit")
+    print("")
+
 preChecks()
 
 config = getConfig()
@@ -209,3 +214,9 @@ while True:
         print("Bye!")
         exit(0)
 
+    elif i == "h" or i == "help":
+        printHelp()
+    
+    elif i == "s" or i == "status":
+        status = subprocess.check_output("afl-whatsup {0}".format(config['outDir']),shell=True)
+        print(status.decode('ascii'))
