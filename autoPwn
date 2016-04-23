@@ -59,7 +59,7 @@ def newCycle():
     tmpDirCMin = os.path.abspath('tmpOut.cmin')
     os.mkdir(tmpDirCMin)
     # TODO: Add non-qemu here
-    subprocess.check_output("afl-cmin -i {0} -o {1} -Q -- {2} {3}".format(tmpDir,tmpDirCMin,config['target'],config['cmdline']),shell=True)
+    subprocess.check_output("afl-cmin -i {0} -o {1} -Q -m {4} -- {2} {3}".format(tmpDir,tmpDirCMin,config['target'],config['cmdline'],config["memory"]),shell=True)
 
     # Done w/ tmpDir
     shutil.rmtree(tmpDir)
@@ -74,7 +74,7 @@ def newCycle():
         # TODO: Add non-qemu here
         print("Optimizing test case {0}".format(os.path.basename(test_case)))
         outFile = os.path.join(tmpDirTMin,os.path.basename(test_case))
-        subprocess.check_output("afl-tmin -i \"{0}\" -o \"{1}\" -Q -- {2} {3}".format(test_case,outFile,config['target'],config['cmdline']),shell=True)
+        subprocess.check_output("afl-tmin -i \"{0}\" -o \"{1}\" -Q -m {4} -- {2} {3}".format(test_case,outFile,config['target'],config['cmdline'],config["memory"]),shell=True)
 
 
     shutil.rmtree(tmpDirCMin)
@@ -131,22 +131,26 @@ def getConfig():
 
 
     defaultThreads = multiprocessing.cpu_count()
-    threads = input("Number of cores ({0}): ".format(defaultThreads))
+    threads = input("Number of cores (default: {0}): ".format(defaultThreads))
     threads = defaultThreads if threads == "" else int(threads)
     config["threads"] = threads
  
 
-    inDir = input("Test Case Dir ('in/'): ")
+    inDir = input("Test Case Dir (default: 'in/'): ")
     inDir = "in" if inDir == "" else inDir
     inDir = os.path.abspath(inDir)
     config["inDir"] = inDir
 
 
-    outDir = input("Test Case Dir ('out/'): ")
+    outDir = input("Test Case Dir (default: 'out/'): ")
     outDir = "out" if outDir == "" else outDir
     outDir = os.path.abspath(outDir)
     config["outDir"] = outDir
 
+
+    memory = input("Max memory (default: 200): ")
+    memory = int(memory) if memory is not None else 200
+    config["memory"] = memory
     
 
     return config
@@ -163,7 +167,7 @@ def writeConfig(config):
         f.write("\n[afl.ctrl]\n")
         f.write("file = \n")
         f.write("timeout = 200+\n")
-        f.write("mem_limit = 150\n")
+        f.write("mem_limit = {0}\n".format(config["memory"]))
         f.write("qemu = on\n")
         f.write("cpu_affinity = {0}".format(' '.join([str(x) for x in range(config['threads'])])) + "\n")
         f.write("\n[afl.behavior]\n")
