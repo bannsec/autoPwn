@@ -212,6 +212,7 @@ def printHelp():
     print("autoPwn")
     print("     s == fuzzer (s)tatus")
     print("     e == collect (e)xploits")
+    print("     a == collect (a)ll paths")
     print("     q == (q)uit")
     print("")
 
@@ -226,14 +227,55 @@ def collectExploits():
             pass
 
         for exp in glob.glob(os.path.join(exploits,"S*")):
-            print("Checking",exp)
+            #print("Checking",exp)
             base = os.path.basename(exp)
             o = subprocess.check_output("afl-tmin -i {0} -o {1} -Q -m {4} -- {2} {3}".format(exp,os.path.join(exploitMin,base),config['target'],config['cmdline'],config["memory"]),shell=True)
-            print(o.decode('ascii'))
+            #print(o.decode('ascii'))
 
         shutil.rmtree(exploits)
 
         print("Completed. Exploits in directory {0}".format(exploitMin))
+
+def collectAllPaths():
+        paths = os.path.abspath('paths')
+        os.mkdir(paths)
+
+        # TODO: Handle this better. Sometimes there will be dups
+        try:
+            subprocess.check_output("cp {0}/*/queue/* {1}".format(config['outDir'],paths),shell=True)
+        except:
+            pass
+
+        pathsCMin = os.path.abspath("paths_cmin")
+        
+        try:
+            os.mkdir(pathsCMin)
+        except:
+            pass
+
+        subprocess.check_output("afl-cmin -i {0} -o {1} -Q -m {2} -- {3} {4}".format(paths,pathsCMin,config["memory"],config["target"],config["cmdline"]),shell=True)
+
+        
+
+
+        pathsMin = os.path.abspath("paths_min")
+        
+        try:
+            os.mkdir(pathsMin)
+        except:
+            pass
+
+        for exp in glob.glob(os.path.join(pathsCMin,"*")):
+            #print("Checking",exp)
+            base = os.path.basename(exp)
+            o = subprocess.check_output("afl-tmin -i {0} -o {1} -Q -m {4} -- {2} {3}".format(exp,os.path.join(pathsMin,base),config['target'],config['cmdline'],config["memory"]),shell=True)
+            #print(o.decode('ascii'))
+
+        shutil.rmtree(paths)
+        shutil.rmtree(pathsCMin)
+
+        print("Completed. Paths in directory {0}".format(pathsMin))
+
 
 
 parser = argparse.ArgumentParser(description='Automate some basic fuzzing management')
@@ -278,3 +320,7 @@ while True:
     elif i == "e":
         print("Collecting viable exploits")
         collectExploits()
+
+    elif i == "a":
+        print("Collecting all paths")
+        collectAllPaths()
