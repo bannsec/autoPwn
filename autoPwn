@@ -7,6 +7,9 @@ import subprocess
 import signal
 import re
 import glob
+import argparse
+import configparser
+
 
 CHECK_INTERVAL = 5
 
@@ -149,7 +152,7 @@ def getConfig():
 
 
     memory = input("Max memory (default: 200): ")
-    memory = int(memory) if memory is not None else 200
+    memory = int(memory) if memory is not "" else 200
     config["memory"] = memory
     
 
@@ -178,6 +181,20 @@ def writeConfig(config):
         f.write("slave_only = off\n")
         f.write("interactive = off\n")
         
+
+def readConfig(config_file):
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    newConfig = {}
+    newConfig['inDir'] = config['afl.dirs']['input']
+    newConfig['outDir'] = config['afl.dirs']['output']
+    newConfig['target'] = config['target']['target']
+    newConfig['cmdline'] = config['target']['cmdline']
+    newConfig['memory'] = int(config['afl.ctrl']['mem_limit'])
+    newConfig['threads'] = len(config['afl.ctrl']['cpu_affinity'].split(" "))
+    newConfig['cycles_done'] = 0 # Intentionally going to be wrong here to initiate path clean
+    
+    return newConfig
 
 def runAFL(cmd=None):
     cmd = "start" if cmd is None else cmd
@@ -211,7 +228,7 @@ def collectExploits():
         for exp in glob.glob(os.path.join(exploits,"S*")):
             print("Checking",exp)
             base = os.path.basename(exp)
-            o = subprocess.check_output("afl-tmin -i {0} -o {1} -Q -- {2} {3}".format(exp,os.path.join(exploitMin,base),config['target'],config['cmdline']),shell=True)
+            o = subprocess.check_output("afl-tmin -i {0} -o {1} -Q -m {4} -- {2} {3}".format(exp,os.path.join(exploitMin,base),config['target'],config['cmdline'],config["memory"]),shell=True)
             print(o.decode('ascii'))
 
         shutil.rmtree(exploits)
@@ -219,11 +236,22 @@ def collectExploits():
         print("Completed. Exploits in directory {0}".format(exploitMin))
 
 
+parser = argparse.ArgumentParser(description='Automate some basic fuzzing management')
+parser.add_argument('config_file', type=str, nargs='?',
+                   help='(optional) an existing autoPwn config file to resume execution')
+args = parser.parse_args()
+#print(args.config_file)
+
 preChecks()
 
-config = getConfig()
+if args.config_file is None:
 
-writeConfig(config)
+    config = getConfig()
+    
+    writeConfig(config)
+
+else:
+    config = readConfig(args.config_file)
 
 print("Starting fuzz")
 runAFL()
