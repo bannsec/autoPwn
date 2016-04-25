@@ -213,6 +213,7 @@ def printHelp():
     print("     s == fuzzer (s)tatus")
     print("     e == collect (e)xploits")
     print("     a == collect (a)ll paths")
+    print("     m == (m)inimize corpus")
     print("     q == (q)uit")
     print("")
 
@@ -255,8 +256,6 @@ def collectAllPaths():
 
         subprocess.check_output("afl-cmin -i {0} -o {1} -Q -m {2} -- {3} {4}".format(paths,pathsCMin,config["memory"],config["target"],config["cmdline"]),shell=True)
 
-        
-
 
         pathsMin = os.path.abspath("paths_min")
         
@@ -281,8 +280,12 @@ def collectAllPaths():
 parser = argparse.ArgumentParser(description='Automate some basic fuzzing management')
 parser.add_argument('config_file', type=str, nargs='?',
                    help='(optional) an existing autoPwn config file to resume execution')
+parser.add_argument('--no-auto-min', dest='no_auto_min', action='store_true',
+                    help='Remove auto-prune functionality. It can still be done on-demand')
+parser.set_defaults(no_auto_min=False)
 args = parser.parse_args()
-#print(args.config_file)
+
+#print(args.no_auto_min)
 
 preChecks()
 
@@ -298,9 +301,10 @@ else:
 print("Starting fuzz")
 runAFL()
 
-# Start up our watcher
-signal.signal(signal.SIGALRM, checkFuzzerStatus)
-signal.alarm(CHECK_INTERVAL)
+if not args.no_auto_min:
+    # Start up our watcher
+    signal.signal(signal.SIGALRM, checkFuzzerStatus)
+    signal.alarm(CHECK_INTERVAL)
 
 while True:
     i = input("autoPwn> ").lower()
@@ -324,3 +328,6 @@ while True:
     elif i == "a":
         print("Collecting all paths")
         collectAllPaths()
+
+    elif i == "m":
+        newCycle()
