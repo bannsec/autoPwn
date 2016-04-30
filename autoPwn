@@ -199,7 +199,7 @@ def readConfig(config_file):
 def runAFL(cmd=None):
     cmd = "start" if cmd is None else cmd
 
-    subprocess.check_output("afl-multicore -c autoPwn.config {1} {0}".format(config['threads'],cmd),shell=True)
+    subprocess.check_output("afl-multicore -i - -c autoPwn.config {1} {0}".format(config['threads'],cmd),shell=True)
     # It adds our python instance into the kill file too... Let's remove that :-)
     try:
         subprocess.check_output("grep -v {0} /tmp/afl_multicore.PGID.SESSION > /tmp/afl_multicore.PGID.SESSION2".format(os.getpgid(0)),shell=True)
