@@ -138,7 +138,7 @@ autoPwn
      q == (q)uit
 ```
 
-So what happened here was that the script created some default values (including determining the number of cores available). We changed one default value due to needing extra memory to run this in QEMU. autoPwn created a config file that it then gave to afl-utilz (https://github.com/rc0r/afl-utils). In the config file, it also set up CPU affinities, so the fuzzing would be default optimal.
+So what happened here was that the script created some default values (including determining the number of cores available). We changed one default value due to needing extra memory to run this in QEMU. autoPwn created a config file that it then gave to afl-utils (https://github.com/rc0r/afl-utils). In the config file, it also set up CPU affinities, so the fuzzing would be default optimal.
 
 At this point, your computer is chucking away at fuzzing. However, one key aspect of fuzzing is minimizing the corpus. With this in mind, autoPwn is watching the afl-fuzz instance to monitor for when a series of the mutations are completed. When this happens, it will stop fuzzing (non-optimal, but fine for now), minimize the corpus, then re-start fuzzing. It does this without any human intervention so you can fire and forget.
 
