@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import os.path
 import shutil
@@ -9,7 +9,9 @@ import re
 import glob
 import argparse
 import configparser
-
+import tracer, angr, simuvex, driller, fuzzer
+from ui.console import ConsoleUI
+import modules.banner, modules.binInfo
 
 CHECK_INTERVAL = 5
 
@@ -109,16 +111,15 @@ def preChecks():
     if shutil.which("afl-fuzz") == None:
         print("Must have afl-fuzz installed: http://lcamtuf.coredump.cx/afl/")
         exit(1)
-    if shutil.which("afl-multicore") == None:
-        print("Must have afl-utils installed: https://github.com/rc0r/afl-utils")
-        exit(1)
 
 def getConfig():
     config = {}
     config['cycles_done'] = 0
     print("Setting up fuzz configuration")
 
-    target = input("Target Binary (full or relative path): ")
+    #target = input("Target Binary (full or relative path): ")
+    target = args.binary[0]
+
     # Change it to abs path
     target = os.path.abspath(target)
     config["target"] = target
@@ -129,31 +130,30 @@ def getConfig():
         exit(1)
 
 
-    cmdline = input("Command line args: ")
-    config["cmdline"] = cmdline
-
+    #cmdline = input("Command line args: ")
+    #config["cmdline"] = cmdline
 
     defaultThreads = multiprocessing.cpu_count()
-    threads = input("Number of cores (default: {0}): ".format(defaultThreads))
-    threads = defaultThreads if threads == "" else int(threads)
-    config["threads"] = threads
+    #threads = input("Number of cores (default: {0}): ".format(defaultThreads))
+    #threads = defaultThreads if threads == "" else int(threads)
+    config["threads"] = defaultThreads
  
 
-    inDir = input("Test Case Dir (default: 'in/'): ")
-    inDir = "in" if inDir == "" else inDir
-    inDir = os.path.abspath(inDir)
-    config["inDir"] = inDir
+    #inDir = input("Test Case Dir (default: 'in/'): ")
+    #inDir = "in" if inDir == "" else inDir
+    workDir = os.path.abspath("work")
+    config["workDir"] = workDir
 
 
-    outDir = input("Test Case Dir (default: 'out/'): ")
-    outDir = "out" if outDir == "" else outDir
-    outDir = os.path.abspath(outDir)
-    config["outDir"] = outDir
+    #outDir = input("Test Case Dir (default: 'out/'): ")
+    #outDir = "out" if outDir == "" else outDir
+    #outDir = os.path.abspath(outDir)
+    #config["outDir"] = outDir
 
 
-    memory = input("Max memory (default: 200): ")
-    memory = int(memory) if memory is not "" else 200
-    config["memory"] = memory
+    #memory = input("Max memory (default: 200): ")
+    #memory = int(memory) if memory is not "" else 200
+    config["memory"] = "8G"
     
 
     return config
@@ -162,37 +162,31 @@ def getConfig():
 def writeConfig(config):
     with open("autoPwn.config","w") as f:
         f.write("[afl.dirs]\n")
-        f.write("input = {0}\n".format(config["inDir"]))
-        f.write("output = {0}\n".format(config["outDir"]))
+        f.write("work = {0}\n".format(config["workDir"]))
         f.write("\n[target]\n")
         f.write("target = {0}\n".format(config["target"]))
-        f.write("cmdline = {0}\n".format(config["cmdline"]))
+        #f.write("cmdline = {0}\n".format(config["cmdline"]))
         f.write("\n[afl.ctrl]\n")
         f.write("file = \n")
         f.write("timeout = 200+\n")
         f.write("mem_limit = {0}\n".format(config["memory"]))
         f.write("qemu = on\n")
-        f.write("cpu_affinity = {0}".format(' '.join([str(x) for x in range(config['threads'])])) + "\n")
+        #f.write("cpu_affinity = {0}".format(' '.join([str(x) for x in range(config['threads'])])) + "\n")
         f.write("\n[afl.behavior]\n")
         f.write("dirty = off\n")
         f.write("dumb = off\n")
-        f.write("\n[job]\n")
-        f.write("session = SESSION\n")
-        f.write("slave_only = off\n")
-        f.write("interactive = off\n")
         
 
 def readConfig(config_file):
     config = configparser.ConfigParser()
     config.read(config_file)
     newConfig = {}
-    newConfig['inDir'] = config['afl.dirs']['input']
-    newConfig['outDir'] = config['afl.dirs']['output']
+    newConfig['workDir'] = config['afl.dirs']['work']
     newConfig['target'] = config['target']['target']
-    newConfig['cmdline'] = config['target']['cmdline']
+    #newConfig['cmdline'] = config['target']['cmdline']
     newConfig['memory'] = int(config['afl.ctrl']['mem_limit'])
-    newConfig['threads'] = len(config['afl.ctrl']['cpu_affinity'].split(" "))
-    newConfig['cycles_done'] = 0 # Intentionally going to be wrong here to initiate path clean
+    #newConfig['threads'] = len(config['afl.ctrl']['cpu_affinity'].split(" "))
+    #newConfig['cycles_done'] = 0 # Intentionally going to be wrong here to initiate path clean
     
     return newConfig
 
@@ -276,18 +270,32 @@ def collectAllPaths():
         print("Completed. Paths in directory {0}".format(pathsMin))
 
 
+def setupUI():
+    global console
+    console = ConsoleUI()
+
+    console.createView("MainMenu")
+    console.setActiveView("MainMenu")
+    console.registerModule(modules.banner.Banner(),height=20)
+    console.registerModule(modules.binInfo.BinInfo(proj,cfg),height=20)
+    
+
 
 parser = argparse.ArgumentParser(description='Automate some basic fuzzing management')
+parser.add_argument('binary', type=str, nargs=1,
+                    help = "Binary to auto fuzz")
 parser.add_argument('config_file', type=str, nargs='?',
-                   help='(optional) an existing autoPwn config file to resume execution')
+                    help='(optional) an existing autoPwn config file to resume execution')
 parser.add_argument('--no-auto-min', dest='no_auto_min', action='store_true',
                     help='Remove auto-prune functionality. It can still be done on-demand')
-parser.set_defaults(no_auto_min=False)
+parser.set_defaults(no_auto_min=True)
 args = parser.parse_args()
+
+#print(args.binary[0])
 
 #print(args.no_auto_min)
 
-preChecks()
+#preChecks()
 
 if args.config_file is None:
 
@@ -298,8 +306,17 @@ if args.config_file is None:
 else:
     config = readConfig(args.config_file)
 
-print("Starting fuzz")
-runAFL()
+# Load up the binary
+print("Loading up the binary")
+proj = angr.Project(config['target'],load_options={'auto_load_libs': False})
+cfg = proj.analyses.CFG()
+
+setupUI()
+
+
+console.draw()
+
+exit(0)
 
 if not args.no_auto_min:
     # Start up our watcher
