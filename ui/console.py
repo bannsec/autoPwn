@@ -122,7 +122,8 @@ class ConsoleUI:
             print("+" + "-"*(baseWidth-2) + "+")
 
             for line in out.split("\n")[:height]:
-                print("| " + line + " " * (baseWidth - len(line) - 3) + "|")
+                term_len = terminal_length(line) # This removes color codes from the length
+                print("| " + line + " " * (baseWidth - term_len - 3) + "|")
 
             # Bottom border
             print("+" + "-"*(baseWidth-2) + "+")
@@ -152,11 +153,14 @@ class ConsoleUI:
 def cls():
     os.system('cls' if os.name=='nt' else 'clear')
 
+def terminal_length(s):
+    return len(re.sub('\x1b\[.+?m','',s))
 
 import shutil
 import logging
 import sys
 import os
+import re
 from terminalsize import get_terminal_size
 
 log = logging.getLogger("ConsoleUI")
