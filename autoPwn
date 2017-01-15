@@ -11,24 +11,15 @@ import argparse
 import configparser
 import tracer, angr, simuvex, driller, fuzzer
 from ui.console import ConsoleUI
-import modules.banner, modules.binInfo
+import modules.banner, modules.binInfo, modules.menu
+import modules.fuzzerStats
 
-CHECK_INTERVAL = 5
+CHECK_INTERVAL = 10
 
 def checkFuzzerStatus(signum, frame):
-    # NOTE: Assuming the only smart fuzzer will allways be SESSION000
-    global config
-    fuzzer_stats_file = os.path.join(config['outDir'],"SESSION000","fuzzer_stats")
-    with open(fuzzer_stats_file,"r") as f:
-        fuzzer_stats = f.read()
-
-    cycles_done = int(re.search("\ncycles_done +: (\d+)\n",fuzzer_stats).group(1))
-
-    # Have we completed another cycle?
-    if cycles_done > config['cycles_done']:
-        print("We completed another cycle")
-        config['cycles_done'] = cycles_done
-        newCycle()
+    
+    # Refresh our display
+    console.draw()    
 
     # Reset our alarm
     signal.alarm(CHECK_INTERVAL)
@@ -171,6 +162,7 @@ def writeConfig(config):
         f.write("timeout = 200+\n")
         f.write("mem_limit = {0}\n".format(config["memory"]))
         f.write("qemu = on\n")
+        f.write("threads = {0}\n".format(config['threads']))
         #f.write("cpu_affinity = {0}".format(' '.join([str(x) for x in range(config['threads'])])) + "\n")
         f.write("\n[afl.behavior]\n")
         f.write("dirty = off\n")
@@ -186,6 +178,7 @@ def readConfig(config_file):
     #newConfig['cmdline'] = config['target']['cmdline']
     newConfig['memory'] = int(config['afl.ctrl']['mem_limit'])
     #newConfig['threads'] = len(config['afl.ctrl']['cpu_affinity'].split(" "))
+    newConfig['threads'] = int(config['afl.ctrl']['threads'])
     #newConfig['cycles_done'] = 0 # Intentionally going to be wrong here to initiate path clean
     
     return newConfig
@@ -201,15 +194,6 @@ def runAFL(cmd=None):
         pass
     subprocess.check_output("mv /tmp/afl_multicore.PGID.SESSION2 /tmp/afl_multicore.PGID.SESSION",shell=True)
 
-
-def printHelp():
-    print("autoPwn")
-    print("     s == fuzzer (s)tatus")
-    print("     e == collect (e)xploits")
-    print("     a == collect (a)ll paths")
-    print("     m == (m)inimize corpus")
-    print("     q == (q)uit")
-    print("")
 
 def collectExploits():
         exploits = os.path.abspath('exploits')
@@ -271,14 +255,54 @@ def collectAllPaths():
 
 
 def setupUI():
-    global console
+    global console, bininfo
     console = ConsoleUI()
+
+    main_menu = modules.menu.Menu()
+    main_menu.addItem("S","(S)tart searching")
+    main_menu.addItem("Q","(Q)uit")
 
     console.createView("MainMenu")
     console.setActiveView("MainMenu")
     console.registerModule(modules.banner.Banner(),height=20)
-    console.registerModule(modules.binInfo.BinInfo(proj,cfg),height=20)
+    bininfo = modules.binInfo.BinInfo(proj,cfg)
+    console.registerModule(bininfo,height=20)
+    console.registerModule(modules.fuzzerStats.FuzzerStats(fuzz),height=50)
+    console.registerModule(main_menu,height=100)
+
+
+def doMainMenu():
+    console.setActiveView("MainMenu")
+    console.setPrompt("Select> ")
     
+    while True:
+        console.draw()
+        selection = console.input()
+
+        if selection.upper() == "S":
+            doStart()
+
+        if selection.upper() == "Q":
+            doExit()
+
+def doStart():
+    """Handle starting everything up."""
+    
+    # Start up the fuzzer   
+    fuzz.start()
+    
+    # Make sure to refresh our display
+    signal.signal(signal.SIGALRM, checkFuzzerStatus)
+    signal.alarm(CHECK_INTERVAL)
+    
+
+     
+def doExit():
+    # If fuzzer is alive, kill it first
+    if fuzz.alive:
+        fuzz.kill()
+    
+    exit(0)
 
 
 parser = argparse.ArgumentParser(description='Automate some basic fuzzing management')
@@ -306,6 +330,10 @@ if args.config_file is None:
 else:
     config = readConfig(args.config_file)
 
+# Setup the fuzzer
+print("Initializing fuzzer")
+fuzz = fuzzer.Fuzzer(args.binary[0],config['workDir'],afl_count=config['threads'])
+
 # Load up the binary
 print("Loading up the binary")
 proj = angr.Project(config['target'],load_options={'auto_load_libs': False})
@@ -313,8 +341,7 @@ cfg = proj.analyses.CFG()
 
 setupUI()
 
-
-console.draw()
+doMainMenu()
 
 exit(0)
 

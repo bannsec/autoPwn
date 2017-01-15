@@ -148,7 +148,7 @@ class ConsoleUI:
         Use setPrompt to set a custom prompt
         """
         # For now, just do this
-        return input()
+        return raw_input()
 
 def cls():
     os.system('cls' if os.name=='nt' else 'clear')
