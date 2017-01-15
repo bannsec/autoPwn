@@ -22,7 +22,7 @@ class BinInfo:
 
         # Use cached results for better performance
         if self._table:
-            return str(table)
+            return str(self._table)
 
         table = PrettyTable(["Binary","Arch","Type","RELRO","NX","Canary","PIC","Fortify"])
         table.border = False # Border only takes up space!
