@@ -36,8 +36,15 @@ class BinInfo:
         # File Type
         row.append(self._proj.loader.main_bin.filetype)
 
-        # RELRO (need to figure out a better way...)
-        row.append(self._proj.loader.main_bin.rela_type)
+        # RELRO (need to get this into CLE proper..)
+        if 'DT_BIND_NOW' in self._proj.loader.main_bin._dynamic:
+            row.append(colored("Full","green"))
+
+        elif any("GNU_RELRO" in segment.header.p_type for segment in self._proj.loader.main_bin.reader.iter_segments()):
+            row.append(colored("Partial","yellow"))
+
+        else:
+            row.append(colored("None","red"))
 
         # NX
         if self._proj.loader.main_bin.execstack:
