@@ -230,7 +230,7 @@ def doStart():
     """Handle starting everything up."""
     
     # Start up the fuzzer   
-    queues['engine'].put(["fuzzer_start",None])
+    queues['fuzzer'].put(["start",None])
     
     # Make sure to refresh our display
     signal.signal(signal.SIGALRM, checkFuzzerStatus)
@@ -239,46 +239,70 @@ def doStart():
 
      
 def doExit():
-    # Kill the fuzzing
-    queues['engine'].put(["fuzzer_kill",None])
+    # Tell our procs to exit
+    queues['fuzzer'].put(["quit",None])
+    queues['driller'].put(["quit",None])
     
-    # Race condition
-    sleep(0.2)
-
     exit(0)
 
 ##########################
 # Fuzzing Thread Section #
 ##########################
 
-def engine(binary,workDir,threads,queues=None):
+def _fuzzer(binary,workDir,threads,queues=None):
     # Setup the fuzzer
     print("Initializing fuzzer")
     fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads)
 
-    drilling = False
-
     while True:
 
-        command, replyto = queues['engine'].get()
+        command, replyto = queues['fuzzer'].get()
 
         replyto = queues[replyto] if replyto is not None else None
 
-        if command == "fuzzer_alive":
+        if command == "alive":
             replyto.put(fuzz.alive)
 
-        elif command == "fuzzer_stats":
+        elif command == "stats":
             replyto.put(fuzz.stats)
 
-        elif command == "fuzzer_start":
+        elif command == "start":
             fuzz.start()
 
-        elif command == "fuzzer_kill":
+        elif command == "kill":
             if fuzz.alive:
                 fuzz.kill()
+
+        elif command == "quit":
+            if fuzz.alive:
+                fuzz.kill()
+            return
         
-        elif command == "driller_alive":
-            replyto.put(drilling)
+
+##########################
+# Driller Thread Section #
+##########################
+
+def _driller(queues):
+    alive = False
+
+    while True:
+
+        command, replyto = queues['driller'].get()
+
+        replyto = queues[replyto] if replyto is not None else None
+
+        if command == "alive":
+            replyto.put(alive)
+
+        if command == "quit":
+            return
+
+
+
+##########################
+# Watcher Thread Section #
+##########################
 
 
 def watcher(queues):
@@ -289,13 +313,13 @@ def watcher(queues):
         sleep(5)
 
         # If we haven't started yet, just pass
-        queues['engine'].put(["fuzzer_alive",me])
+        queues['fuzzer'].put(["alive",me])
         fuzzer_alive = queues[me].get()
         if not fuzzer_alive:
             continue
         
         # Grab the fuzzer stats
-        queues['engine'].put(["fuzzer_stats",me])
+        queues['fuzzer'].put(["stats",me])
         fuzzer_stats = queues[me].get()
 
         # If we have no more pending favs, we should move on.
@@ -325,12 +349,6 @@ if __name__ == "__main__":
     parser.set_defaults(no_auto_min=True)
     args = parser.parse_args()
 
-    #print(args.binary[0])
-
-    #print(args.no_auto_min)
-
-    #preChecks()
-
     if args.config_file is None:
     
         config = getConfig()
@@ -342,13 +360,19 @@ if __name__ == "__main__":
 
     # Setup some queues
     queues = {
-        'engine': multiprocessing.Queue(),
+        'fuzzer': multiprocessing.Queue(),
+        'driller': multiprocessing.Queue(),
         'fuzzstats': multiprocessing.Queue(),
         'watcher': multiprocessing.Queue(),
+        'main': multiprocessing.Queue(),
     }
 
-    p = multiprocessing.Process(target=engine,args=(args.binary[0],config['workDir'],config['threads']),kwargs={'queues':queues})
-    p.daemon = True
+    # Start up fuzzer proc
+    p = multiprocessing.Process(target=_fuzzer,args=(args.binary[0],config['workDir'],config['threads']),kwargs={'queues':queues})
+    p.start()
+
+    # Start up driller proc
+    p = multiprocessing.Process(target=_driller,kwargs={'queues':queues})
     p.start()
 
     # Load up the binary
@@ -362,6 +386,13 @@ if __name__ == "__main__":
     p = multiprocessing.Process(target=watcher,args=(queues,))
     p.daemon = True
     p.start()
+
+    # Make sure everything is running before starting the UI
+    queues['fuzzer'].put(["alive","main"])
+    queues['main'].get()
+
+    queues['driller'].put(["alive","main"])
+    queues['main'].get()
 
     doMainMenu()
 

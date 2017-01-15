@@ -17,30 +17,30 @@ class FuzzerStats:
         self._console = console
 
     def _fuzzer_alive(self):
-        fuzzer = self._queues['engine']
+        fuzzer = self._queues['fuzzer']
         
-        fuzzer.put(['fuzzer_alive',self._me])
+        fuzzer.put(['alive',self._me])
         
         return self._queues[self._me].get()
 
     def _driller_alive(self):
-        fuzzer = self._queues['engine']
+        fuzzer = self._queues['driller']
         
-        fuzzer.put(['driller_alive',self._me])
+        fuzzer.put(['alive',self._me])
         
         return self._queues[self._me].get()
 
     def _fuzzer_stats(self):
-        fuzzer = self._queues['engine']
+        fuzzer = self._queues['fuzzer']
         
-        fuzzer.put(['fuzzer_stats',self._me])
+        fuzzer.put(['stats',self._me])
         
         return self._queues[self._me].get()
 
     def draw(self,height,width):
 
         # TODO: Check for console size before returning stuff
-        fuzzer = self._queues['engine']
+        fuzzer = self._queues['fuzzer']
         
         alive = self._fuzzer_alive()
         drilling = self._driller_alive()
