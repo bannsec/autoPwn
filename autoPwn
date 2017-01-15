@@ -2,8 +2,8 @@
 
 import os.path
 import shutil
-import multiprocessing
 import subprocess
+import multiprocessing
 import signal
 import re
 import glob
@@ -21,81 +21,25 @@ def checkFuzzerStatus(signum, frame):
     # Refresh our display
     console.draw()    
 
+    # If we have no more pending favs, we should move on.
+    pending_favs = sum(int(fuzz.stats[x]['pending_favs']) for x in fuzz.stats)
+
+    # It's time to drill for some more
+    #if pending_favs == 0:
+    #    doDrill()
+
     # Reset our alarm
     signal.alarm(CHECK_INTERVAL)
 
-def newCycle():
-    global config
-    # Perform cleaning actions and start up the next cycle
+def doDrill():
+    # Inform the UI
+    fuzzstats.drilling = True
     
-    print("Pausing AFL")
-    # First off, shut down our current fuzzing
-    #subprocess.check_output("afl-multikill")
-    subprocess.check_output("killall afl-fuzz",shell=True)
-
-    # Grab the active queues
-    # TODO: Change this to be pythonic so that it'll work more generally...
-    tmpDir = os.path.abspath('tmpOut')
+    # Stop the current fuzzing efforts to allow CPU to focus on driller
+    fuzz.kill()
     
-    os.mkdir(tmpDir)
     
-    print("Copying queues")
-    # Copy over the queues
-    queue_files = glob.glob("out/*/queue/*")
-    # Uniquely indexing for now
-    i = 0
-    for f in queue_files:
-        base = os.path.basename(f)
-        base += "_{0}".format(i)
-        shutil.copyfile(f,os.path.join(tmpDir,base))
-        i += 1
-
-    print("Minimizing corpus")
-    # Minimize the corpus
-    tmpDirCMin = os.path.abspath('tmpOut.cmin')
-    os.mkdir(tmpDirCMin)
-    # TODO: Add non-qemu here
-    subprocess.check_output("afl-cmin -i {0} -o {1} -Q -m {4} -- {2} {3}".format(tmpDir,tmpDirCMin,config['target'],config['cmdline'],config["memory"]),shell=True)
-
-    # Done w/ tmpDir
-    shutil.rmtree(tmpDir)
-
-
-    # Optimize test cases
-    print("Optimizing test cases")
-    tmpDirTMin = os.path.abspath('tmpOut.tmin')
-    os.mkdir(tmpDirTMin)
-
-    for test_case in glob.glob(os.path.join(tmpDirCMin,"*")):
-        # TODO: Add non-qemu here
-        print("Optimizing test case {0}".format(os.path.basename(test_case)))
-        outFile = os.path.join(tmpDirTMin,os.path.basename(test_case))
-        subprocess.check_output("afl-tmin -i \"{0}\" -o \"{1}\" -Q -m {4} -- {2} {3}".format(test_case,outFile,config['target'],config['cmdline'],config["memory"]),shell=True)
-
-
-    shutil.rmtree(tmpDirCMin)
-
-    # Re-seed
-    print("Re-seeding")
-    for seed in glob.glob("out/*/queue/*"):
-        os.remove(seed)
-
-    i = 0
-    for queue in glob.glob("out/*/queue"):
-        for seed in glob.glob(os.path.join(tmpDirTMin,"*")):
-            base = os.path.basename(seed)
-            base = base.split("_")[0] # Little bit of cleanup
-            shutil.copyfile(seed,os.path.join(queue,base)) 
-            i += 1
-
-    # Remove tmpdir
-    shutil.rmtree(tmpDirTMin)
-
-    # Resume
-    print("Resuming search")
-    runAFL('resume')
-
-    print("Done")
+    
 
 def preChecks():
     # Checking for files that are needed
@@ -255,19 +199,21 @@ def collectAllPaths():
 
 
 def setupUI():
-    global console, bininfo
+    global console, bininfo, fuzzstats
     console = ConsoleUI()
 
     main_menu = modules.menu.Menu()
     main_menu.addItem("S","(S)tart searching")
     main_menu.addItem("Q","(Q)uit")
 
+    fuzzstats = modules.fuzzerStats.FuzzerStats(fuzz)
+
     console.createView("MainMenu")
     console.setActiveView("MainMenu")
     console.registerModule(modules.banner.Banner(),height=20)
     bininfo = modules.binInfo.BinInfo(proj,cfg)
     console.registerModule(bininfo,height=20)
-    console.registerModule(modules.fuzzerStats.FuzzerStats(fuzz),height=50)
+    console.registerModule(fuzzstats,height=50)
     console.registerModule(main_menu,height=100)
 
 
@@ -305,73 +251,43 @@ def doExit():
     exit(0)
 
 
-parser = argparse.ArgumentParser(description='Automate some basic fuzzing management')
-parser.add_argument('binary', type=str, nargs=1,
-                    help = "Binary to auto fuzz")
-parser.add_argument('config_file', type=str, nargs='?',
-                    help='(optional) an existing autoPwn config file to resume execution')
-parser.add_argument('--no-auto-min', dest='no_auto_min', action='store_true',
-                    help='Remove auto-prune functionality. It can still be done on-demand')
-parser.set_defaults(no_auto_min=True)
-args = parser.parse_args()
+if __name__ == "__main__":
 
-#print(args.binary[0])
+    parser = argparse.ArgumentParser(description='Automate some basic fuzzing management')
+    parser.add_argument('binary', type=str, nargs=1,
+                        help = "Binary to auto fuzz")
+    parser.add_argument('config_file', type=str, nargs='?',
+                        help='(optional) an existing autoPwn config file to resume execution')
+    parser.add_argument('--no-auto-min', dest='no_auto_min', action='store_true',
+                        help='Remove auto-prune functionality. It can still be done on-demand')
+    parser.set_defaults(no_auto_min=True)
+    args = parser.parse_args()
 
-#print(args.no_auto_min)
+    #print(args.binary[0])
 
-#preChecks()
+    #print(args.no_auto_min)
 
-if args.config_file is None:
+    #preChecks()
 
-    config = getConfig()
+    if args.config_file is None:
     
-    writeConfig(config)
-
-else:
-    config = readConfig(args.config_file)
-
-# Setup the fuzzer
-print("Initializing fuzzer")
-fuzz = fuzzer.Fuzzer(args.binary[0],config['workDir'],afl_count=config['threads'])
-
-# Load up the binary
-print("Loading up the binary")
-proj = angr.Project(config['target'],load_options={'auto_load_libs': False})
-cfg = proj.analyses.CFG()
-
-setupUI()
-
-doMainMenu()
-
-exit(0)
-
-if not args.no_auto_min:
-    # Start up our watcher
-    signal.signal(signal.SIGALRM, checkFuzzerStatus)
-    signal.alarm(CHECK_INTERVAL)
-
-while True:
-    i = input("autoPwn> ").lower()
-
-    if i == "q" or i == "quit":
-        subprocess.check_output("killall afl-fuzz",shell=True)
-        print("Bye!")
-        exit(0)
-
-    elif i == "h" or i == "help":
-        printHelp()
+        config = getConfig()
     
-    elif i == "s" or i == "status":
-        status = subprocess.check_output("afl-whatsup {0}".format(config['outDir']),shell=True)
-        print(status.decode('ascii'))
+        writeConfig(config)
 
-    elif i == "e":
-        print("Collecting viable exploits")
-        collectExploits()
+    else:
+        config = readConfig(args.config_file)
 
-    elif i == "a":
-        print("Collecting all paths")
-        collectAllPaths()
+    # Setup the fuzzer
+    print("Initializing fuzzer")
+    fuzz = fuzzer.Fuzzer(args.binary[0],config['workDir'],afl_count=config['threads'])
 
-    elif i == "m":
-        newCycle()
+    # Load up the binary
+    print("Loading up the binary")
+    proj = angr.Project(config['target'],load_options={'auto_load_libs': False})
+    cfg = proj.analyses.CFG()
+
+    setupUI()
+
+    doMainMenu()
+

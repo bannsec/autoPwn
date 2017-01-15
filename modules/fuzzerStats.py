@@ -10,6 +10,7 @@ class FuzzerStats:
         cfg = proj.analyses.CFG()
         """
         self._fuzzer = fuzzer
+        self.drilling = False # Hack for now...
 
     def setConsole(self,console):
         self._console = console
@@ -19,9 +20,11 @@ class FuzzerStats:
         # TODO: Check for console size before returning stuff
         fuzzer = self._fuzzer
 
-        if not fuzzer.alive:
-            return "Fuzzer is not running"
+        if not fuzzer.alive and not self.drilling:
+            return "Not running"
 
+        if not fuzzer.alive and self.drilling:
+            return "Drilling in progress..."
         
         # Fuzzer is alive, print out stats
         
