@@ -4,6 +4,7 @@ import os.path
 import shutil
 import subprocess
 import multiprocessing
+import threading
 import signal
 import re
 import glob
@@ -13,6 +14,7 @@ import tracer, angr, simuvex, driller, fuzzer
 from ui.console import ConsoleUI
 import modules.banner, modules.binInfo, modules.menu
 import modules.fuzzerStats
+from time import sleep
 
 CHECK_INTERVAL = 10
 
@@ -21,24 +23,17 @@ def checkFuzzerStatus(signum, frame):
     # Refresh our display
     console.draw()    
 
-    # If we have no more pending favs, we should move on.
-    pending_favs = sum(int(fuzz.stats[x]['pending_favs']) for x in fuzz.stats)
-
-    # It's time to drill for some more
-    #if pending_favs == 0:
-    #    doDrill()
-
     # Reset our alarm
     signal.alarm(CHECK_INTERVAL)
 
 def doDrill():
-    # Inform the UI
-    fuzzstats.drilling = True
     
-    # Stop the current fuzzing efforts to allow CPU to focus on driller
-    fuzz.kill()
-    
-    
+    # Grab whatever paths we have
+    paths = fuzz.queue()
+
+    print("Found paths: " + str(paths))
+
+    sleep(10)
     
 
 def preChecks():
@@ -206,7 +201,7 @@ def setupUI():
     main_menu.addItem("S","(S)tart searching")
     main_menu.addItem("Q","(Q)uit")
 
-    fuzzstats = modules.fuzzerStats.FuzzerStats(fuzz)
+    fuzzstats = modules.fuzzerStats.FuzzerStats(queues)
 
     console.createView("MainMenu")
     console.setActiveView("MainMenu")
@@ -235,7 +230,7 @@ def doStart():
     """Handle starting everything up."""
     
     # Start up the fuzzer   
-    fuzz.start()
+    queues['engine'].put(["fuzzer_start",None])
     
     # Make sure to refresh our display
     signal.signal(signal.SIGALRM, checkFuzzerStatus)
@@ -244,11 +239,78 @@ def doStart():
 
      
 def doExit():
-    # If fuzzer is alive, kill it first
-    if fuzz.alive:
-        fuzz.kill()
+    # Kill the fuzzing
+    queues['engine'].put(["fuzzer_kill",None])
     
+    # Race condition
+    sleep(0.2)
+
     exit(0)
+
+##########################
+# Fuzzing Thread Section #
+##########################
+
+def engine(binary,workDir,threads,queues=None):
+    # Setup the fuzzer
+    print("Initializing fuzzer")
+    fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads)
+
+    drilling = False
+
+    while True:
+
+        command, replyto = queues['engine'].get()
+
+        replyto = queues[replyto] if replyto is not None else None
+
+        if command == "fuzzer_alive":
+            replyto.put(fuzz.alive)
+
+        elif command == "fuzzer_stats":
+            replyto.put(fuzz.stats)
+
+        elif command == "fuzzer_start":
+            fuzz.start()
+
+        elif command == "fuzzer_kill":
+            if fuzz.alive:
+                fuzz.kill()
+        
+        elif command == "driller_alive":
+            replyto.put(drilling)
+
+
+def watcher(queues):
+    me = "watcher"
+    
+    while True:
+
+        sleep(5)
+
+        # If we haven't started yet, just pass
+        queues['engine'].put(["fuzzer_alive",me])
+        fuzzer_alive = queues[me].get()
+        if not fuzzer_alive:
+            continue
+        
+        # Grab the fuzzer stats
+        queues['engine'].put(["fuzzer_stats",me])
+        fuzzer_stats = queues[me].get()
+
+        # If we have no more pending favs, we should move on.
+        pending_favs = sum(int(fuzzer_stats[x]['pending_favs']) for x in fuzzer_stats)
+
+        # It's time to drill for some more
+        if pending_favs == 0:
+            print("Should start drilling now")
+
+
+
+################
+# Main Section #
+################
+
 
 
 if __name__ == "__main__":
@@ -278,9 +340,16 @@ if __name__ == "__main__":
     else:
         config = readConfig(args.config_file)
 
-    # Setup the fuzzer
-    print("Initializing fuzzer")
-    fuzz = fuzzer.Fuzzer(args.binary[0],config['workDir'],afl_count=config['threads'])
+    # Setup some queues
+    queues = {
+        'engine': multiprocessing.Queue(),
+        'fuzzstats': multiprocessing.Queue(),
+        'watcher': multiprocessing.Queue(),
+    }
+
+    p = multiprocessing.Process(target=engine,args=(args.binary[0],config['workDir'],config['threads']),kwargs={'queues':queues})
+    p.daemon = True
+    p.start()
 
     # Load up the binary
     print("Loading up the binary")
@@ -288,6 +357,11 @@ if __name__ == "__main__":
     cfg = proj.analyses.CFG()
 
     setupUI()
+
+    # Watch for the fuzzing to stall. This thread kicks off change into drilling
+    p = multiprocessing.Process(target=watcher,args=(queues,))
+    p.daemon = True
+    p.start()
 
     doMainMenu()
 
