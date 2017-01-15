@@ -12,6 +12,7 @@ class FuzzerStats:
         self._queues = queues
         self.drilling = False # Hack for now...
         self._me = 'fuzzstats'
+        self._s = "Not running"
 
     def setConsole(self,console):
         self._console = console
@@ -40,16 +41,22 @@ class FuzzerStats:
     def draw(self,height,width):
 
         # TODO: Check for console size before returning stuff
+        return self._s
+        
+
+    def preDraw(self):
+        """Predrawing so that we don't have that lag time when actually drawing"""
+
         fuzzer = self._queues['fuzzer']
         
         alive = self._fuzzer_alive()
         drilling = self._driller_alive()
 
         if not alive and not drilling:
-            return "Not running"
+            self._s = "Not running"
 
         if not alive and drilling:
-            return "Drilling in progress..."
+            self._s = "Drilling in progress..."
         
         # Fuzzer is alive, print out stats
         
@@ -75,7 +82,7 @@ class FuzzerStats:
                 fuzzerInstance['unique_hangs'],
             ])
         
-        return str(table)
+        self._s = str(table)
         
 from prettytable import PrettyTable
 from termcolor import colored

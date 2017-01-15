@@ -16,12 +16,15 @@ import modules.banner, modules.binInfo, modules.menu
 import modules.fuzzerStats
 from time import sleep
 
-CHECK_INTERVAL = 10
+CHECK_INTERVAL = 5
 
 def checkFuzzerStatus(signum, frame):
+
+    # Let fuzzstats prebuild
+    fuzzstats.preDraw()
     
     # Refresh our display
-    console.draw()    
+    console.draw()
 
     # Reset our alarm
     signal.alarm(CHECK_INTERVAL)
@@ -232,6 +235,9 @@ def doStart():
     # Start up the fuzzer   
     queues['fuzzer'].put(["start",None])
     
+    # Have fuzz predraw
+    fuzzstats.preDraw()
+
     # Make sure to refresh our display
     signal.signal(signal.SIGALRM, checkFuzzerStatus)
     signal.alarm(CHECK_INTERVAL)
