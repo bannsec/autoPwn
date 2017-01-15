@@ -90,40 +90,22 @@ class BinInfo:
             table.add_column("AFL","")
             row.append(colored("Enabled","yellow"))
 
-        # Build-id
-        state = self._proj.factory.blank_state()
-        section = self._proj.loader.main_bin.sections_map['.note.gnu.build-id']
-        buildID = hex(state.se.any_int(state.memory.load(section.vaddr+16,20)))[2:].rstrip("L")
-        table.add_column("Build","")
-        row.append(buildID)
+        # UPX
+        offset = self._proj.loader.main_bin.binary_stream.tell()
+        self._proj.loader.main_bin.binary_stream.seek(0)
+        if "UPX!" in self._proj.loader.main_bin.binary_stream.read():
+            table.add_column("Packer","")
+            row.append(colored("UPX","red"))
+        self._proj.loader.main_bin.binary_stream.seek(offset)
+
+        # Build-id -- Disabling for now... it just takes up space and not sure why i care.
+        #state = self._proj.factory.blank_state()
+        #section = self._proj.loader.main_bin.sections_map['.note.gnu.build-id']
+        #buildID = hex(state.se.any_int(state.memory.load(section.vaddr+16,20)))[2:].rstrip("L")
+        #table.add_column("Build","")
+        #row.append(buildID)
 
         table.add_row(row)
-
-        """
-        table = PrettyTable(["Binary","Arch","Type","RELRO","NX","Canary","PIC","Fortify","ASAN","MSAN","UBSAN","AFL","Build"])
-        table.border = False # Border only takes up space!
-
-        # Build-id
-        state = self._proj.factory.blank_state()
-        section = self._proj.loader.main_bin.sections_map['.note.gnu.build-id']
-        buildID = hex(state.se.any_int(state.memory.load(section.vaddr+16,20)))[2:].rstrip("L")
-
-        table.add_row([
-            self._proj.loader.main_bin.binary,
-            self._proj.loader.main_bin.arch.name,
-            self._proj.loader.main_bin.filetype,
-            self._proj.loader.main_bin.rela_type,
-            not self._proj.loader.main_bin.execstack,
-            "Enabled" if self._proj.loader.main_bin.get_symbol("__stack_chk_fail") else "Disabled",
-            self._proj.loader.main_bin.pic,
-            "Enabled" if any(self._cfg.functions[func].name.endswith("_chk") for func in self._cfg.functions) else "Disabled",
-            "Enabled" if any(self._cfg.functions[func].name.startswith("__asan_") for func in self._cfg.functions) else "Disabled",
-            "Enabled" if any(self._cfg.functions[func].name.startswith("__msan_") for func in self._cfg.functions) else "Disabled",
-            "Enabled" if any(self._cfg.functions[func].name.startswith("__ubsan_'") for func in self._cfg.functions) else "Disabled",
-            "Enabled" if any(self._cfg.functions[func].name.startswith("__afl_") for func in self._cfg.functions) else "Disabled",
-            buildID,
-            ])
-        """
 
         # Cache the results
         self._table = table
