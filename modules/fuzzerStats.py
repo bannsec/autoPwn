@@ -20,21 +20,30 @@ class FuzzerStats:
     def _fuzzer_alive(self):
         fuzzer = self._queues['fuzzer']
         
-        fuzzer.put(['alive',self._me])
+        fuzzer.put({
+            'command': 'alive',
+            'replyto': self._me
+        })
         
         return self._queues[self._me].get()
 
     def _driller_alive(self):
         fuzzer = self._queues['driller']
         
-        fuzzer.put(['alive',self._me])
+        fuzzer.put({
+            'command': 'alive',
+            'replyto': self._me
+        })
         
         return self._queues[self._me].get()
 
     def _fuzzer_stats(self):
         fuzzer = self._queues['fuzzer']
         
-        fuzzer.put(['stats',self._me])
+        fuzzer.put({
+            'command': 'stats',
+            'replyto': self._me
+        })
         
         return self._queues[self._me].get()
 

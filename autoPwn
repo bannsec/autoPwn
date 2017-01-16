@@ -233,7 +233,10 @@ def doStart():
     """Handle starting everything up."""
     
     # Start up the fuzzer   
-    queues['fuzzer'].put(["start",None])
+    queues['fuzzer'].put({
+        'command': 'start',
+        'replyto': None
+    })
     
     # Have fuzz predraw
     fuzzstats.preDraw()
@@ -246,8 +249,15 @@ def doStart():
      
 def doExit():
     # Tell our procs to exit
-    queues['fuzzer'].put(["quit",None])
-    queues['driller'].put(["quit",None])
+    queues['fuzzer'].put({
+        'command': 'quit',
+        'replyto': None
+    })
+
+    queues['driller'].put({
+        'command': 'quit',
+        'replyto': None
+    })
     
     exit(0)
 
@@ -262,9 +272,10 @@ def _fuzzer(binary,workDir,threads,queues=None):
 
     while True:
 
-        command, replyto = queues['fuzzer'].get()
+        item = queues['fuzzer'].get()
 
-        replyto = queues[replyto] if replyto is not None else None
+        command = item['command']
+        replyto = queues[item['replyto']] if item['replyto'] is not None else None
 
         if command == "alive":
             replyto.put(fuzz.alive)
@@ -294,9 +305,10 @@ def _driller(queues):
 
     while True:
 
-        command, replyto = queues['driller'].get()
+        item = queues['driller'].get()
 
-        replyto = queues[replyto] if replyto is not None else None
+        command = item['command']
+        replyto = queues[item['replyto']] if item['replyto'] is not None else None
 
         if command == "alive":
             replyto.put(alive)
@@ -319,13 +331,21 @@ def watcher(queues):
         sleep(5)
 
         # If we haven't started yet, just pass
-        queues['fuzzer'].put(["alive",me])
+        queues['fuzzer'].put({
+            'command': 'alive',
+            'replyto': me
+        })
+
         fuzzer_alive = queues[me].get()
         if not fuzzer_alive:
             continue
         
         # Grab the fuzzer stats
-        queues['fuzzer'].put(["stats",me])
+        queues['fuzzer'].put({
+            'command': 'stats',
+            'replyto': me
+        })
+
         fuzzer_stats = queues[me].get()
 
         # If we have no more pending favs, we should move on.
@@ -394,10 +414,16 @@ if __name__ == "__main__":
     p.start()
 
     # Make sure everything is running before starting the UI
-    queues['fuzzer'].put(["alive","main"])
+    queues['fuzzer'].put({
+        'command': 'alive',
+        'replyto': 'main'
+    })
     queues['main'].get()
 
-    queues['driller'].put(["alive","main"])
+    queues['driller'].put({
+        'command': 'alive',
+        'replyto': 'main'
+    })
     queues['main'].get()
 
     doMainMenu()
