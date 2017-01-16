@@ -281,12 +281,17 @@ def _fuzzer(binary,workDir,threads,queues=None):
         elif command == "kill":
             if fuzz.alive:
                 fuzz.kill()
+                # Start up a new one right away to resume
+                fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads)
 
         elif command == "getPaths":
             replyto.put(fuzz.queue())
 
         elif command == "getBitmap":
             replyto.put(fuzz.bitmap())
+
+        elif command == "pollenate":
+            fuzz.pollenate(item['paths'])
 
         elif command == "quit":
             if fuzz.alive:
@@ -420,9 +425,27 @@ def watcher(queues):
                 # Get the results
                 new_paths = queues[me].get()
 
-                print("Got the following new paths")
-                print(new_paths)
+                # If we actually got results, time to reseed
+                if len(new_paths) > 0:
 
+                    # Request the pollination
+                    queues['fuzzer'].put({
+                        'command': 'pollenate',
+                        'replyto': None,
+                        'paths': list(new_paths),
+                    })
+                    
+                    # Don't waste time drilling. See if AFL finds more now.
+                    queues['fuzzer'].put({
+                        'command': 'start',
+                        'replyto': None,
+                    })
+                    
+                    break
+
+            else:
+                print("WARNING: We were not able to drill more paths! You may be stuck. Perhaps try adding more seeds manually?")
+                sleep(60*15) # Give AFL another 15 minutes of trying before we cut in again
 
 
 ################
