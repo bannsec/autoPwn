@@ -444,14 +444,15 @@ def watcher(queues):
                     break
 
             else:
-                print("WARNING: We were not able to drill more paths! You may be stuck. Perhaps try adding more seeds manually?")
-                sleep(60*15) # Give AFL another 15 minutes of trying before we cut in again
-
                 # Don't waste time drilling. See if AFL finds more now.
                 queues['fuzzer'].put({
                     'command': 'start',
                     'replyto': None,
                 })
+
+                print("WARNING: We were not able to drill more paths! You may be stuck. Perhaps try adding more seeds manually?")
+                sleep(60*15) # Give AFL another 15 minutes of trying before we cut in again
+
 
 
 ################
