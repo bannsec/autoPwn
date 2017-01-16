@@ -29,14 +29,6 @@ def checkFuzzerStatus(signum, frame):
     # Reset our alarm
     signal.alarm(CHECK_INTERVAL)
 
-def doDrill():
-    
-    # Grab whatever paths we have
-    paths = fuzz.queue()
-
-    print("Found paths: " + str(paths))
-
-    sleep(10)
     
 
 def preChecks():
@@ -290,6 +282,12 @@ def _fuzzer(binary,workDir,threads,queues=None):
             if fuzz.alive:
                 fuzz.kill()
 
+        elif command == "getPaths":
+            replyto.put(fuzz.queue())
+
+        elif command == "getBitmap":
+            replyto.put(fuzz.bitmap())
+
         elif command == "quit":
             if fuzz.alive:
                 fuzz.kill()
@@ -300,8 +298,8 @@ def _fuzzer(binary,workDir,threads,queues=None):
 # Driller Thread Section #
 ##########################
 
-def _driller(queues):
-    alive = False
+def _driller(queues,binary):
+    procs = [] # TODO: Maybe remove dead procs??
 
     while True:
 
@@ -311,11 +309,41 @@ def _driller(queues):
         replyto = queues[item['replyto']] if item['replyto'] is not None else None
 
         if command == "alive":
-            replyto.put(alive)
+            replyto.put(any(p.is_alive() for p in procs))
 
-        if command == "quit":
+        elif command == "drill":
+
+            # Spawn off subprocess for drilling
+            p = multiprocessing.Process(target=_doDrill,kwargs={
+                'queues': queues,
+                'path': item['path'],
+                'replyto': replyto,
+                'bitmap': item['bitmap'],
+                'binary': binary,
+            })
+            p.daemon = True
+            p.start()
+
+            # Record our process
+            procs.append(p)
+
+        elif command == "quit":
             return
 
+
+def _doDrill(queues,path,replyto,bitmap,binary):
+    
+    # Setup a new driller
+    drill = driller.Driller(binary=binary,input=path,fuzz_bitmap=bitmap)
+
+    # Drill drill drill
+    results = drill.drill()
+
+    # Grab the newly minted paths
+    new_paths = set([result[1] for result in results])
+
+    # Send them back
+    replyto.put(new_paths)
 
 
 ##########################
@@ -353,7 +381,47 @@ def watcher(queues):
 
         # It's time to drill for some more
         if pending_favs == 0:
-            print("Should start drilling now")
+            
+            # Kill the fuzzer, free up resources for drilling
+            queues['fuzzer'].put({
+                'command': 'kill',
+                'replyto': None
+            })
+
+            # Grab the current paths
+            queues['fuzzer'].put({
+                'command': 'getPaths',
+                'replyto': me
+            })
+    
+            paths = queues[me].get()
+
+            # Grab the current bitmap
+            queues['fuzzer'].put({
+                'command': 'getBitmap',
+                'replyto': me,
+            })
+
+            bitmap = queues[me].get()
+            if bitmap == None:
+                raise Exception("bitmap is None value. Something went wrong. Try removing the work directory and starting over again fresh")
+
+            # Try to drill into each path
+            for path in paths:
+                
+                # Submit the drill job
+                queues['driller'].put({
+                    'command': 'drill',
+                    'replyto': me,
+                    'path': path,
+                    'bitmap': bitmap,
+                })
+                
+                # Get the results
+                new_paths = queues[me].get()
+
+                print("Got the following new paths")
+                print(new_paths)
 
 
 
@@ -394,11 +462,11 @@ if __name__ == "__main__":
     }
 
     # Start up fuzzer proc
-    p = multiprocessing.Process(target=_fuzzer,args=(args.binary[0],config['workDir'],config['threads']),kwargs={'queues':queues})
+    p = multiprocessing.Process(target=_fuzzer,args=(config['target'],config['workDir'],config['threads']),kwargs={'queues':queues})
     p.start()
 
     # Start up driller proc
-    p = multiprocessing.Process(target=_driller,kwargs={'queues':queues})
+    p = multiprocessing.Process(target=_driller,kwargs={'queues':queues,'binary':config['target']})
     p.start()
 
     # Load up the binary
