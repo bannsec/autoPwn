@@ -63,9 +63,11 @@ class FuzzerStats:
 
         if not alive and not drilling:
             self._s = "Not running"
+            return
 
         if not alive and drilling:
             self._s = "Drilling in progress..."
+            return
         
         # Fuzzer is alive, print out stats
         
