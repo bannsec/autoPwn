@@ -1,6 +1,11 @@
 # Warning
 Completely re-writing this right now. Focus will be on interactive Linux apps that only take input from stdin for starters. Attempting to use ShellPhish's Driller and Fuzzer functionality.
 
+autoPwn in it's current state will do this in limited form. Simply run `autoPwn ./binary` then select the Start option.
+
+
+The below is from the OLD version of autoPwn..
+
 # Overview
 autoPwn is a lofty name for a simple script. When working with fuzzing and afl-fuzz, I noticed that I would do the same tasks over and over. With this in mind, I wanted to create a script that would accomplish the following:
 
