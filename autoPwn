@@ -192,8 +192,14 @@ def setupUI():
     global console, bininfo, fuzzstats
     console = ConsoleUI()
 
+
+    #
+    # Main Menu
+    #  
+
     main_menu = modules.menu.Menu()
     main_menu.addItem("S","(S)tart searching")
+    main_menu.addItem("O","(O)ptions")
     main_menu.addItem("Q","(Q)uit")
 
     fuzzstats = modules.fuzzerStats.FuzzerStats(queues)
@@ -206,20 +212,79 @@ def setupUI():
     console.registerModule(fuzzstats,height=50)
     console.registerModule(main_menu,height=100)
 
+    # 
+    # Option Menu
+    #
+
+    options_menu = modules.menu.Menu()
+    options_menu.addItem("P","(P)ollinate seeds from directory")
+    options_menu.addItem("Q","Back")
+    
+    console.createView("OptionsMenu")
+    console.setActiveView("OptionsMenu")
+    console.registerModule(modules.banner.Banner(),height=20)
+    console.registerModule(options_menu,height=100)
+
+
 
 def doMainMenu():
-    console.setActiveView("MainMenu")
-    console.setPrompt("Select> ")
     
     while True:
+        console.setActiveView("MainMenu")
+        console.setPrompt("Select> ")
+
         console.draw()
         selection = console.input()
 
         if selection.upper() == "S":
             doStart()
 
-        if selection.upper() == "Q":
+        elif selection.upper() == "O":
+            doOptionsMenu()
+
+        elif selection.upper() == "Q":
             doExit()
+
+
+def doOptionsMenu():
+    
+    while True:
+        console.setActiveView("OptionsMenu")
+        console.setPrompt("Select> ")
+
+        console.draw()
+        selection = console.input()
+
+        if selection.upper() == "P":
+            doPollinate()
+
+        elif selection.upper() == "Q":
+            return
+
+
+def doPollinate():
+    """Handle reading in new seeds and pollinating"""
+
+    seeds = []
+
+    pDir = raw_input("Directory with seeds to pollinate: ")
+
+    # Choosing to allow variables and expansions to make it easier to use
+    pDir = os.path.expanduser(os.path.expandvars(pDir))
+
+    # Read in the files
+    for root, dirs, files in os.walk(pDir):
+        for fName in files:
+            with open(os.path.join(root,fName),"rb") as f:
+                seeds.append(f.read())
+
+    # Request the fuzzer to pollinate for us
+    queues['fuzzer'].put({
+        'command': 'pollenate',
+        'replyto': None,
+        'paths': seeds,
+    })
+    
 
 def doStart():
     """Handle starting everything up."""
