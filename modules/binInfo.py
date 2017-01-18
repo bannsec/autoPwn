@@ -13,6 +13,10 @@ class BinInfo:
         self._cfg = cfg
         self._table = None
 
+        # Draw ourselves to init.
+        # TODO: This should probably just be its own method
+        self.draw(100,100)
+
     def setConsole(self,console):
         self._console = console
 

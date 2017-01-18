@@ -322,10 +322,10 @@ def doExit():
 # Fuzzing Thread Section #
 ##########################
 
-def _fuzzer(binary,workDir,threads,queues=None):
+def _fuzzer(binary,workDir,threads,queues=None,qemu=None):
     # Setup the fuzzer
     print("Initializing fuzzer")
-    fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads)
+    fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu)
 
     while True:
 
@@ -347,7 +347,7 @@ def _fuzzer(binary,workDir,threads,queues=None):
             if fuzz.alive:
                 fuzz.kill()
                 # Start up a new one right away to resume
-                fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads)
+                fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu)
 
         elif command == "getPaths":
             replyto.put(fuzz.queue())
@@ -556,20 +556,21 @@ if __name__ == "__main__":
         'main': multiprocessing.Queue(),
     }
 
-    # Start up fuzzer proc
-    p = multiprocessing.Process(target=_fuzzer,args=(config['target'],config['workDir'],config['threads']),kwargs={'queues':queues})
-    p.start()
-
-    # Start up driller proc
-    p = multiprocessing.Process(target=_driller,kwargs={'queues':queues,'binary':config['target']})
-    p.start()
-
     # Load up the binary
     print("Loading up the binary")
     proj = angr.Project(config['target'],load_options={'auto_load_libs': False})
     cfg = proj.analyses.CFG()
 
     setupUI()
+
+    # Start up fuzzer proc
+    p = multiprocessing.Process(target=_fuzzer,args=(config['target'],config['workDir'],config['threads']),kwargs={'queues':queues,'qemu': not bininfo.afl})
+    p.start()
+
+    # Start up driller proc
+    p = multiprocessing.Process(target=_driller,kwargs={'queues':queues,'binary':config['target']})
+    p.start()
+
 
     # Watch for the fuzzing to stall. This thread kicks off change into drilling
     p = multiprocessing.Process(target=watcher,args=(queues,))
