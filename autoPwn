@@ -218,6 +218,7 @@ def setupUI():
 
     options_menu = modules.menu.Menu()
     options_menu.addItem("P","(P)ollinate seeds from directory")
+    options_menu.addItem("D","Force (D)rill")
     options_menu.addItem("Q","Back")
     
     console.createView("OptionsMenu")
@@ -257,6 +258,11 @@ def doOptionsMenu():
 
         if selection.upper() == "P":
             doPollinate()
+
+        elif selection.upper() == "D":
+            p = multiprocessing.Process(target=_orchestrateDrill,kwargs={'me':'main'})
+            p.daemon = True
+            p.start()
 
         elif selection.upper() == "Q":
             return
@@ -451,6 +457,18 @@ def watcher(queues):
 
         # It's time to drill for some more
         if pending_favs == 0:
+            _orchestrateDrill(me)
+
+
+def _orchestrateDrill(me):
+            """Orchestrating the drilling process
+        
+            Kill the fuzzer
+            get bitmap
+            try drilling for each
+            reseed fuzzer with results
+            restart fuzzer
+            """
             
             # Kill the fuzzer, free up resources for drilling
             queues['fuzzer'].put({
