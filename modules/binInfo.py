@@ -39,7 +39,7 @@ class BinInfo:
         row.append(self._proj.loader.main_bin.arch.name)
         
         # File Type
-        row.append(self._proj.loader.main_bin.filetype)
+        row.append(type(self._proj.loader.main_bin).__name__)
 
         # RELRO (need to get this into CLE proper..)
         if 'DT_BIND_NOW' in self._proj.loader.main_bin._dynamic:
