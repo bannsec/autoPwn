@@ -219,6 +219,7 @@ def setupUI():
     options_menu = modules.menu.Menu()
     options_menu.addItem("P","(P)ollinate seeds from directory")
     options_menu.addItem("D","Force (D)rill")
+    options_menu.addItem("X","Add Dictionary To Fuzzer")
     options_menu.addItem("Q","Back")
     
     console.createView("OptionsMenu")
@@ -264,9 +265,25 @@ def doOptionsMenu():
             p.daemon = True
             p.start()
 
+        elif selection.upper() == "X":
+            doSetDictionary()
+
         elif selection.upper() == "Q":
             return
 
+
+def doSetDictionary():
+    """Handle setting the fuzzer dictionary"""
+
+    dictionary = raw_input("Directory or file to use as AFL dictionary: ")
+
+    # Request the fuzzer to pollinate for us
+    queues['fuzzer'].put({
+        'command': 'setDictionary',
+        'replyto': None,
+        'dictionary': dictionary
+    })
+    
 
 def doPollinate():
     """Handle reading in new seeds and pollinating"""
@@ -329,9 +346,14 @@ def doExit():
 ##########################
 
 def _fuzzer(binary,workDir,threads,queues=None,qemu=None):
+    # TODO: Rework commands in here... I'm duplicating code. No beueno.
     # Setup the fuzzer
     print("Initializing fuzzer")
+
+    dictionary = None
+
     fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu)
+    fuzz.dictionary = dictionary
 
     while True:
 
@@ -354,6 +376,7 @@ def _fuzzer(binary,workDir,threads,queues=None,qemu=None):
                 fuzz.kill()
                 # Start up a new one right away to resume
                 fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu)
+                fuzz.dictionary = dictionary
 
         elif command == "getPaths":
             replyto.put(fuzz.queue())
@@ -363,6 +386,26 @@ def _fuzzer(binary,workDir,threads,queues=None,qemu=None):
 
         elif command == "pollenate":
             fuzz.pollenate(item['paths'])
+        
+        elif command == "setDictionary":
+            dictionary = item['dictionary']
+
+            # Santiy check. Don't try to set a path that doesn't exist
+            if not os.path.exists(dictionary):
+                print("Dictionary doesn't exist! Not setting.")
+                dictionary = None
+                continue
+
+            # Need to restart if we are running
+            if fuzz.alive:
+                fuzz.kill()
+                fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu)
+                fuzz.dictionary = dictionary
+                fuzz.start()
+
+            # If we're not alive, just set the variable
+            else:
+                fuzz.dictionary = dictionary
 
         elif command == "quit":
             if fuzz.alive:
