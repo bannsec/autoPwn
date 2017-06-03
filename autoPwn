@@ -15,6 +15,7 @@ from ui.console import ConsoleUI
 import modules.banner, modules.binInfo, modules.menu
 import modules.fuzzerStats
 from time import sleep
+import sys
 
 CHECK_INTERVAL = 5
 
@@ -80,6 +81,7 @@ def getConfig():
     #memory = int(memory) if memory is not "" else 200
     config["memory"] = "8G"
     
+    config["arguments"] = args.argument
 
     return config
 
@@ -101,7 +103,7 @@ def writeConfig(config):
         f.write("\n[afl.behavior]\n")
         f.write("dirty = off\n")
         f.write("dumb = off\n")
-        
+        f.write("arguments = {0}".format(config["arguments"]))
 
 def readConfig(config_file):
     config = configparser.ConfigParser()
@@ -352,7 +354,7 @@ def _fuzzer(binary,workDir,threads,queues=None,qemu=None):
 
     dictionary = None
 
-    fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu)
+    fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu,target_opts=config['arguments'])
     fuzz.dictionary = dictionary
 
     while True:
@@ -375,7 +377,7 @@ def _fuzzer(binary,workDir,threads,queues=None,qemu=None):
             if fuzz.alive:
                 fuzz.kill()
                 # Start up a new one right away to resume
-                fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu)
+                fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu,target_opts=config['arguments'])
                 fuzz.dictionary = dictionary
 
         elif command == "getPaths":
@@ -399,7 +401,7 @@ def _fuzzer(binary,workDir,threads,queues=None,qemu=None):
             # Need to restart if we are running
             if fuzz.alive:
                 fuzz.kill()
-                fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu)
+                fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu,target_opts=config['arguments'])
                 fuzz.dictionary = dictionary
                 fuzz.start()
 
@@ -585,20 +587,22 @@ def _orchestrateDrill(me):
 # Main Section #
 ################
 
-
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Automate some basic fuzzing management')
     parser.add_argument('binary', type=str, nargs=1,
                         help = "Binary to auto fuzz")
-    parser.add_argument('config_file', type=str, nargs='?',
-                        help='(optional) an existing autoPwn config file to resume execution')
-    parser.add_argument('--no-auto-min', dest='no_auto_min', action='store_true',
-                        help='Remove auto-prune functionality. It can still be done on-demand')
-    parser.set_defaults(no_auto_min=True)
+    parser.add_argument('argument', type=str, nargs='*',
+                        help='(optional) command line flags to give to the binary')
+    #parser.add_argument('--no-auto-min', dest='no_auto_min', action='store_true',
+    #                    help='Remove auto-prune functionality. It can still be done on-demand')
+    #parser.set_defaults(no_auto_min=True)
     args = parser.parse_args()
 
+    args.config_file = None
     if args.config_file is None:
     
         config = getConfig()
