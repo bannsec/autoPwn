@@ -33,20 +33,20 @@ class BinInfo:
         row = []
         
         # Binary
-        row.append(self._proj.loader.main_bin.binary)
+        row.append(self._proj.loader.main_object.binary)
 
         # Arch
-        row.append(self._proj.loader.main_bin.arch.name)
+        row.append(self._proj.loader.main_object.arch.name)
         
         # File Type
-        row.append(type(self._proj.loader.main_bin).__name__)
+        row.append(type(self._proj.loader.main_object).__name__)
 
         # RELRO (need to get this into CLE proper..)
-        if 'DT_BIND_NOW' in self._proj.loader.main_bin._dynamic:
+        if 'DT_BIND_NOW' in self._proj.loader.main_object._dynamic:
             self.relro = "full"
             row.append(colored("Full","green"))
 
-        elif any("GNU_RELRO" in segment.header.p_type for segment in self._proj.loader.main_bin.reader.iter_segments()):
+        elif any("GNU_RELRO" in segment.header.p_type for segment in self._proj.loader.main_object.reader.iter_segments()):
             self.relro = "partial"
             row.append(colored("Partial","yellow"))
 
@@ -55,7 +55,7 @@ class BinInfo:
             row.append(colored("None","red"))
 
         # NX
-        if self._proj.loader.main_bin.execstack:
+        if self._proj.loader.main_object.execstack:
             self.nx = False
             row.append(colored("Disabled","red"))
         else:
@@ -63,7 +63,7 @@ class BinInfo:
             row.append(colored("Enabled","green"))
 
         # Canary
-        if self._proj.loader.main_bin.get_symbol("__stack_chk_fail"):
+        if self._proj.loader.main_object.get_symbol("__stack_chk_fail"):
             self.canary = True
             row.append(colored("Enabled","green"))
         else:
@@ -71,7 +71,7 @@ class BinInfo:
             row.append(colored("Disabled","red"))
 
         # PIC
-        if self._proj.loader.main_bin.pic:
+        if self._proj.loader.main_object.pic:
             self.pic = True
             row.append(colored("Enabled","green"))
         else:
@@ -123,9 +123,9 @@ class BinInfo:
             self.afl = False
 
         # UPX
-        offset = self._proj.loader.main_bin.binary_stream.tell()
-        self._proj.loader.main_bin.binary_stream.seek(0)
-        if "UPX!" in self._proj.loader.main_bin.binary_stream.read():
+        offset = self._proj.loader.main_object.binary_stream.tell()
+        self._proj.loader.main_object.binary_stream.seek(0)
+        if "UPX!" in self._proj.loader.main_object.binary_stream.read():
             self.packer = "UPX"
             table.add_column("Packer","")
             row.append(colored("UPX","red"))
@@ -133,11 +133,11 @@ class BinInfo:
         else:
             self.packer = None
         
-        self._proj.loader.main_bin.binary_stream.seek(offset)
+        self._proj.loader.main_object.binary_stream.seek(offset)
 
         # Build-id -- Disabling for now... it just takes up space and not sure why i care.
         #state = self._proj.factory.blank_state()
-        #section = self._proj.loader.main_bin.sections_map['.note.gnu.build-id']
+        #section = self._proj.loader.main_object.sections_map['.note.gnu.build-id']
         #buildID = hex(state.se.any_int(state.memory.load(section.vaddr+16,20)))[2:].rstrip("L")
         #table.add_column("Build","")
         #row.append(buildID)
