@@ -8,7 +8,7 @@ Given all the dependency issues here, the easiest way to get autoPwn up and runn
 
 ```bash
 $ sudo docker pull bannsec/autoPwn
-$ sudo docker run -it -v $PWD:/mount
+$ sudo docker run -it -v $PWD:/mount bannsec/autoPwn
 ```
 
 In the Docker build, everything should be ready to go. You can simply start up the tool with:
