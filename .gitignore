@@ -1,2 +1,5 @@
 *.swp
 *.pyc
+*.egg-info
+autoPwn.config
+work/

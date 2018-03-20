@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import logging
 import os.path
 import shutil
 import subprocess
@@ -11,9 +12,8 @@ import glob
 import argparse
 import configparser
 import tracer, angr, simuvex, driller, fuzzer
-from ui.console import ConsoleUI
-import modules.banner, modules.binInfo, modules.menu
-import modules.fuzzerStats
+from .ui.console import ConsoleUI
+from . import modules
 from time import sleep
 import sys
 
@@ -587,20 +587,23 @@ def _orchestrateDrill(me):
 # Main Section #
 ################
 
-import logging
-logging.basicConfig(level=logging.DEBUG)
-
-if __name__ == "__main__":
+def main():
+    global queues, args, proj, cfg, config
 
     parser = argparse.ArgumentParser(description='Automate some basic fuzzing management')
     parser.add_argument('binary', type=str, nargs=1,
                         help = "Binary to auto fuzz")
     parser.add_argument('argument', type=str, nargs='*',
                         help='(optional) command line flags to give to the binary')
+    parser.add_argument('--debug', action='store_true', default=False,
+                        help='(optional) Enable debugging output.')
     #parser.add_argument('--no-auto-min', dest='no_auto_min', action='store_true',
     #                    help='Remove auto-prune functionality. It can still be done on-demand')
     #parser.set_defaults(no_auto_min=True)
     args = parser.parse_args()
+
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
 
     args.config_file = None
     if args.config_file is None:
@@ -656,4 +659,8 @@ if __name__ == "__main__":
     queues['main'].get()
 
     doMainMenu()
+
+
+if __name__ == "__main__":
+    main()
 

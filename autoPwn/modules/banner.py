@@ -19,7 +19,7 @@ class Banner:
         else:
             return banner
 
-url = '(c) https://github.com/Owlz/autoPwn'
+url = '(c) https://github.com/bannsec/autoPwn'
 
 banner = r""" ________  ___  ___  _________  ________  ________  ___       __   ________      
 |\   __  \|\  \|\  \|\___   ___\\   __  \|\   __  \|\  \     |\  \|\   ___  \    
