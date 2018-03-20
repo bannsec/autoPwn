@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
+from . import Colorer
 import logging
+logger = logging.getLogger("autoPwn")
+
 import os.path
 import shutil
 import subprocess
@@ -623,6 +626,11 @@ def main():
         'watcher': multiprocessing.Queue(),
         'main': multiprocessing.Queue(),
     }
+
+    # Check binary is executable...
+    if not os.access(config['target'], os.X_OK):
+        logger.error("Your binary is not executable! Be sure to chmod it, i.e.: chmod u+x {}".format(config['target']))
+        exit(1)
 
     # Load up the binary
     print("Loading up the binary")
