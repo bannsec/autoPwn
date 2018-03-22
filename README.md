@@ -20,7 +20,7 @@ $ autoPwn ./file
 # Compiling source for fuzzing
 autoPwn attempts to make compiling source for fuzzing a project easier. To help with this, `autoPwnCompile` was created. Just point it at your source code, and give it options and it will output an executable ready to be fuzzed.
 
-```bash
+```
 usage: autoPwnCompile [-h] [--file FILE] [--ASAN | --MSAN] [--UBSAN]
                       [--fuzzer FUZZER]
 
