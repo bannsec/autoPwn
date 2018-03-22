@@ -4,11 +4,11 @@ Completely re-writing this right now. Focus will be on interactive Linux apps th
 autoPwn in it's current state will do this in limited form. Simply run `autoPwn ./binary` then select the Start option.
 
 # Installing
-Given all the dependency issues here, the easiest way to get autoPwn up and running is to use the Docker build.
+Given all the dependency issues here, the easiest way to get autoPwn up and running is to use the Docker build. Note, you can remove the --security-opt and --cap-add statement, but some fuzzing aspects might not work.
 
 ```bash
 $ sudo docker pull bannsec/autoPwn
-$ sudo docker run -it -v $PWD:/mount bannsec/autoPwn
+$ sudo docker run -it -v $PWD:/mount --security-opt="apparmor=unconfined" --cap-add=SYS_PTRACE bannsec/autoPwn
 ```
 
 In the Docker build, everything should be ready to go. You can simply start up the tool with:

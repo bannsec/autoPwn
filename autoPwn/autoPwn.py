@@ -14,11 +14,12 @@ import re
 import glob
 import argparse
 import configparser
-import tracer, angr, simuvex, driller, fuzzer
 from .ui.console import ConsoleUI
 from . import modules
+from . import fuzzers
 from time import sleep
 import sys
+import angr, driller
 
 CHECK_INTERVAL = 5
 
@@ -32,7 +33,6 @@ def checkFuzzerStatus(signum, frame):
 
     # Reset our alarm
     signal.alarm(CHECK_INTERVAL)
-
     
 
 def preChecks():
@@ -284,7 +284,7 @@ def doSetDictionary():
 
     # Request the fuzzer to pollinate for us
     queues['fuzzer'].put({
-        'command': 'setDictionary',
+        'command': 'set_dictionary',
         'replyto': None,
         'dictionary': dictionary
     })
@@ -347,78 +347,6 @@ def doExit():
     exit(0)
 
 ##########################
-# Fuzzing Thread Section #
-##########################
-
-def _fuzzer(binary,workDir,threads,queues=None,qemu=None):
-    # TODO: Rework commands in here... I'm duplicating code. No beueno.
-    # Setup the fuzzer
-    print("Initializing fuzzer")
-
-    dictionary = None
-
-    fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu,target_opts=config['arguments'])
-    fuzz.dictionary = dictionary
-
-    while True:
-
-        item = queues['fuzzer'].get()
-
-        command = item['command']
-        replyto = queues[item['replyto']] if item['replyto'] is not None else None
-
-        if command == "alive":
-            replyto.put(fuzz.alive)
-
-        elif command == "stats":
-            replyto.put(fuzz.stats)
-
-        elif command == "start":
-            fuzz.start()
-
-        elif command == "kill":
-            if fuzz.alive:
-                fuzz.kill()
-                # Start up a new one right away to resume
-                fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu,target_opts=config['arguments'])
-                fuzz.dictionary = dictionary
-
-        elif command == "getPaths":
-            replyto.put(fuzz.queue())
-
-        elif command == "getBitmap":
-            replyto.put(fuzz.bitmap())
-
-        elif command == "pollenate":
-            fuzz.pollenate(item['paths'])
-        
-        elif command == "setDictionary":
-            dictionary = item['dictionary']
-
-            # Santiy check. Don't try to set a path that doesn't exist
-            if not os.path.exists(dictionary):
-                print("Dictionary doesn't exist! Not setting.")
-                dictionary = None
-                continue
-
-            # Need to restart if we are running
-            if fuzz.alive:
-                fuzz.kill()
-                fuzz = fuzzer.Fuzzer(binary,workDir,afl_count=threads,qemu=qemu,target_opts=config['arguments'])
-                fuzz.dictionary = dictionary
-                fuzz.start()
-
-            # If we're not alive, just set the variable
-            else:
-                fuzz.dictionary = dictionary
-
-        elif command == "quit":
-            if fuzz.alive:
-                fuzz.kill()
-            return
-        
-
-##########################
 # Driller Thread Section #
 ##########################
 
@@ -458,7 +386,7 @@ def _driller(queues,binary):
 def _doDrill(queues,path,replyto,bitmap,binary):
     
     # Setup a new driller
-    drill = driller.Driller(binary=binary,input=path,fuzz_bitmap=bitmap)
+    drill = driller.Driller(binary=binary,input_str=path,fuzz_bitmap=bitmap)
 
     # Drill drill drill
     results = drill.drill()
@@ -526,7 +454,7 @@ def _orchestrateDrill(me):
 
             # Grab the current paths
             queues['fuzzer'].put({
-                'command': 'getPaths',
+                'command': 'get_paths',
                 'replyto': me
             })
     
@@ -534,7 +462,7 @@ def _orchestrateDrill(me):
 
             # Grab the current bitmap
             queues['fuzzer'].put({
-                'command': 'getBitmap',
+                'command': 'get_bitmap',
                 'replyto': me,
             })
 
@@ -600,6 +528,8 @@ def main():
                         help='(optional) command line flags to give to the binary')
     parser.add_argument('--debug', action='store_true', default=False,
                         help='(optional) Enable debugging output.')
+    parser.add_argument('--fuzzer', default='AFL', type=str,
+                        help='(optional) What fuzzer to start with. Options are: {}. Default is AFL.'.format(fuzzers.fuzzers.keys()))
     #parser.add_argument('--no-auto-min', dest='no_auto_min', action='store_true',
     #                    help='Remove auto-prune functionality. It can still be done on-demand')
     #parser.set_defaults(no_auto_min=True)
@@ -610,9 +540,7 @@ def main():
 
     args.config_file = None
     if args.config_file is None:
-    
         config = getConfig()
-    
         writeConfig(config)
 
     else:
@@ -640,7 +568,8 @@ def main():
     setupUI()
 
     # Start up fuzzer proc
-    p = multiprocessing.Process(target=_fuzzer,args=(config['target'],config['workDir'],config['threads']),kwargs={'queues':queues,'qemu': not bininfo.afl})
+    fuzzer = fuzzers.fuzzers[args.fuzzer](target=config['target'], target_args=config['arguments'], work_dir=config['workDir'],threads=config['threads'],queues=queues,bininfo=bininfo)
+    p = multiprocessing.Process(target=fuzzer.daemon)
     p.start()
 
     # Start up driller proc
