@@ -92,6 +92,7 @@ class AFL(Fuzzer):
         base = os.path.basename(full_path)
         dir = os.path.dirname(full_path)
         env = copy(os.environ)
+        env['AFL_HARDEN'] = '1' # TODO: Make this an option?
 
         out_name = "afl_" + '.'.join(base.split(".")[:-1])
 
