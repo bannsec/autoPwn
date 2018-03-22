@@ -91,6 +91,7 @@ class AFL(Fuzzer):
         full_path = os.path.abspath(source)
         base = os.path.basename(full_path)
         dir = os.path.dirname(full_path)
+        env = copy(os.environ)
 
         out_name = "afl_" + '.'.join(base.split(".")[:-1])
 
@@ -106,10 +107,12 @@ class AFL(Fuzzer):
 
         # These are exclusive
         if ASAN:
-            compile_line.append('-fsanitize=address')
+            env['AFL_USE_ASAN'] = "1"
+            #compile_line.append('-fsanitize=address')
         elif MSAN:
-            compile_line.append('-fsanitize=memory')
-            compile_line.append('-fsanitize-memory-track-origins')
+            env['AFL_USE_MSAN'] = "1"
+            #compile_line.append('-fsanitize=memory')
+            #compile_line.append('-fsanitize-memory-track-origins')
         
         if UBSAN:
             compile_line.append('-fsanitize=undefined')
@@ -118,7 +121,7 @@ class AFL(Fuzzer):
         compile_line.append(out_name)
         compile_line.append(base)
 
-        subprocess.check_output(compile_line, cwd=dir)
+        subprocess.check_output(compile_line, cwd=dir, env=env)
 
         # Return the name of the new file
         return os.path.join(dir, out_name)
