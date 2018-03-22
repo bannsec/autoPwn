@@ -95,6 +95,11 @@ class Fuzzer(object):
     def quit(self):
         exit(0)
 
+    @staticmethod
+    def compile_file(source, ASAN, MSAN, UBSAN):
+        """Compile the source code as needed for this fuzzer. Return the name of the output file."""
+        raise NotImplemented
+
     ##############
     # Properties #
     ##############

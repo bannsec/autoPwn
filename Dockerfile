@@ -11,6 +11,7 @@ USER angr
 RUN . /home/angr/.virtualenvs/angr/bin/activate && \
     pip install -U pip setuptools && \
     cd /home/angr/autoPwn/ && pip install -e . && \
-    echo "autoPwn -h" >> ~/.bashrc
+    echo "autoPwn -h" >> ~/.bashrc && \
+    echo "autoPwnCompile -h" >> ~/.bashrc
 
 RUN ["/bin/bash"]

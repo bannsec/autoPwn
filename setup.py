@@ -36,6 +36,7 @@ setup(
     entry_points={
         'console_scripts': [
             'autoPwn = autoPwn.autoPwn:main',
+            'autoPwnCompile = autoPwn.autoPwnCompile:main',
         ],
     },
 )

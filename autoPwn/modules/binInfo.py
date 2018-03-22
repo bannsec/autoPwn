@@ -4,13 +4,11 @@ class BinInfo:
     Prints out a table of information about the current binary.
     """
 
-    def __init__(self,proj,cfg):
+    def __init__(self,proj):
         """
         proj = angr.Project
-        cfg = proj.analyses.CFG()
         """
         self._proj = proj
-        self._cfg = cfg
         self._table = None
 
         # Draw ourselves to init.
@@ -79,7 +77,8 @@ class BinInfo:
             row.append(colored("Disabled","red"))
 
         # Fortify
-        if any(self._cfg.functions[func].name.endswith("_chk") for func in self._cfg.functions):
+        #if any(self._cfg.functions[func].name.endswith("_chk") for func in self._cfg.functions):
+        if any(sym.demangled_name.endswith("_chk") for sym in self._proj.loader.main_object.symbols_by_addr.values()):
             self.fortify = True
             row.append(colored("Enabled","green"))
         else:
@@ -87,7 +86,8 @@ class BinInfo:
             row.append(colored("Disabled","red"))
 
         # ASAN
-        if any(self._cfg.functions[func].name.startswith("__asan_") for func in self._cfg.functions):
+        #if any(self._cfg.functions[func].name.startswith("__asan_") for func in self._cfg.functions):
+        if any(sym.demangled_name.startswith("__asan_") for sym in self._proj.loader.main_object.symbols_by_addr.values()):
             self.asan = True
             table.add_column("ASAN","")
             row.append(colored("Enabled","yellow"))
@@ -96,7 +96,8 @@ class BinInfo:
             self.asan = False
 
         # MSAN
-        if any(self._cfg.functions[func].name.startswith("__msan_") for func in self._cfg.functions):
+        #if any(self._cfg.functions[func].name.startswith("__msan_") for func in self._cfg.functions):
+        if any(sym.demangled_name.startswith("__msan_") for sym in self._proj.loader.main_object.symbols_by_addr.values()):
             self.msan = True
             table.add_column("MSAN","")
             row.append(colored("Enabled","yellow"))
@@ -105,7 +106,8 @@ class BinInfo:
             self.msan = False
 
         # UBSAN
-        if any(self._cfg.functions[func].name.startswith("__ubsan_'") for func in self._cfg.functions):
+        #if any(self._cfg.functions[func].name.startswith("__ubsan_'") for func in self._cfg.functions):
+        if any(sym.demangled_name.startswith("__ubsan_") for sym in self._proj.loader.main_object.symbols_by_addr.values()):
             self.ubsan = True
             table.add_column("UBSAN","")
             row.append(colored("Enabled","yellow"))
@@ -114,7 +116,8 @@ class BinInfo:
             self.ubsan = False
 
         # AFL
-        if any(self._cfg.functions[func].name.startswith("__afl_") for func in self._cfg.functions):
+        #if any(self._cfg.functions[func].name.startswith("__afl_") for func in self._cfg.functions):
+        if any(sym.demangled_name.startswith("__afl_") for sym in self._proj.loader.main_object.symbols_by_addr.values()):
             self.afl = True
             table.add_column("AFL","")
             row.append(colored("Enabled","yellow"))

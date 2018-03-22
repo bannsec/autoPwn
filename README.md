@@ -17,6 +17,25 @@ In the Docker build, everything should be ready to go. You can simply start up t
 $ autoPwn ./file
 ```
 
+# Compiling source for fuzzing
+autoPwn attempts to make compiling source for fuzzing a project easier. To help with this, `autoPwnCompile` was created. Just point it at your source code, and give it options and it will output an executable ready to be fuzzed.
+
+```bash
+usage: autoPwnCompile [-h] [--file FILE] [--ASAN | --MSAN] [--UBSAN]
+                      [--fuzzer FUZZER]
+
+Compile source to binaries for use in autoPwn.
+
+optional arguments:
+  -h, --help       show this help message and exit
+  --file FILE      Single file to compile.
+  --ASAN           Enable ASAN (default off)
+  --MSAN           Enable MSAN (default off)
+  --UBSAN          Enable UBSAN (default off)
+  --fuzzer FUZZER  (optional) What fuzzer to compile for. Options are:
+                   ['AFL']. Default is AFL.
+```
+
 The below is from the OLD version of autoPwn..
 
 # Overview

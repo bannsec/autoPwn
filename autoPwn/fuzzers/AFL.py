@@ -2,6 +2,8 @@ import logging
 logger = logging.getLogger("autoPwn.fuzzers.AFL")
 
 import os
+import subprocess
+import shlex
 from . import *
 
 try:
@@ -15,6 +17,8 @@ try:
     input = raw_input
 except:
     pass
+
+AFL_ROOT = "/home/angr/.virtualenvs/angr/bin/afl-unix/"
 
 class AFL(Fuzzer):
 
@@ -82,6 +86,43 @@ class AFL(Fuzzer):
     def quit(self):
         exit(0)
 
+    @staticmethod
+    def compile_file(source, ASAN, MSAN, UBSAN):
+        full_path = os.path.abspath(source)
+        base = os.path.basename(full_path)
+        dir = os.path.dirname(full_path)
+
+        out_name = "afl_" + '.'.join(base.split(".")[:-1])
+
+        # Guess which to use
+        if base.split(".")[-1].lower() in ["cpp", "cc", "C", "cxx", "c++"]:
+            clang = os.path.join(AFL_ROOT, "afl-clang++")
+        else:
+            clang = os.path.join(AFL_ROOT, "afl-clang")
+
+        # Assuming CLang for now.
+        #compile_line = "{clang} -fsanitize=address -fsanitize=memory -fno-omit-frame-pointer -O1 -g {source} -o {out_name}".format(source=base, out_name=out_name, clang=clang)
+        compile_line = [clang,'-fno-omit-frame-pointer','-O2','-g']
+
+        # These are exclusive
+        if ASAN:
+            compile_line.append('-fsanitize=address')
+        elif MSAN:
+            compile_line.append('-fsanitize=memory')
+            compile_line.append('-fsanitize-memory-track-origins')
+        
+        if UBSAN:
+            compile_line.append('-fsanitize=undefined')
+
+        compile_line.append('-o')
+        compile_line.append(out_name)
+        compile_line.append(base)
+
+        subprocess.check_output(compile_line, cwd=dir)
+
+        # Return the name of the new file
+        return os.path.join(dir, out_name)
+
     ##############
     # Properties #
     ##############
@@ -91,7 +132,7 @@ class AFL(Fuzzer):
         """The fuzzer instance. Automatically created if it was set to None."""
 
         if self.__fuzzer is None:
-            self.__fuzzer = fuzzer.Fuzzer(self.target, self.work_dir, afl_count=self.threads, qemu=self.qemu, target_opts=self.target_args)
+            self.__fuzzer = fuzzer.Fuzzer(self.target, self.work_dir, afl_count=self.threads, qemu=self.qemu, target_opts=self.target_args, memory="99999T")
             self.__fuzzer.dictionary = self.dictionary
 
         return self.__fuzzer

@@ -212,7 +212,7 @@ def setupUI():
     console.createView("MainMenu")
     console.setActiveView("MainMenu")
     console.registerModule(modules.banner.Banner(),height=20)
-    bininfo = modules.binInfo.BinInfo(proj,cfg)
+    bininfo = modules.binInfo.BinInfo(proj)
     console.registerModule(bininfo,height=20)
     console.registerModule(fuzzstats,height=50)
     console.registerModule(main_menu,height=100)
@@ -563,7 +563,7 @@ def main():
     # Load up the binary
     print("Loading up the binary")
     proj = angr.Project(config['target'],load_options={'auto_load_libs': False})
-    cfg = proj.analyses.CFG()
+    #cfg = proj.analyses.CFG()
 
     setupUI()
 
