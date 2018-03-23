@@ -84,6 +84,7 @@ class AFL(Fuzzer):
             self.fuzzer.dictionary = dictionary
 
     def quit(self):
+        self.kill()
         exit(0)
 
     @staticmethod
