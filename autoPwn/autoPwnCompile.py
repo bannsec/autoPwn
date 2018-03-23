@@ -2,11 +2,25 @@ import argparse
 from . import fuzzers
 import os
 
+epilog = """
+examples:
+
+  Compile a specific .c file with AFL (default) and MSAN
+    - autoPwnCompile --file test.c --MSAN
+
+  Run configure script to build for utilizing AFL for the resultant binaries. Add ASAN as well.
+    - autoPwnCompile --ASAN --make "./configure --without-threading"
+    - autoPwnCompile --ASAN --make "make"
+"""
+
 def main():
 
-    parser = argparse.ArgumentParser(description='Compile source to binaries for use in autoPwn.')
-    parser.add_argument('--file', type=str, default=None,
+    parser = argparse.ArgumentParser(description='Compile source to binaries for use in autoPwn.', epilog=epilog, formatter_class=argparse.RawTextHelpFormatter)
+    what = parser.add_mutually_exclusive_group()
+    what.add_argument('--file', type=str, default=None,
                         help = "Single file to compile.")
+    what.add_argument('--make', type=str, default=None,
+                        help = "Run the given command with appropriate 'make' environment variables.")
     SANS = parser.add_mutually_exclusive_group()
     SANS.add_argument('--ASAN', action='store_true', default=False,
                         help = "Enable ASAN (default off)")
@@ -21,6 +35,12 @@ def main():
     if args.file is not None:
         compile_file(file_name=args.file, fuzzer=args.fuzzer, ASAN=args.ASAN, MSAN=args.MSAN, UBSAN=args.UBSAN)
 
+    elif args.make is not None:
+        compile_make(command=args.make, fuzzer=args.fuzzer, ASAN=args.ASAN, MSAN=args.MSAN, UBSAN=args.UBSAN)
+
+def compile_make(command, fuzzer, ASAN, MSAN, UBSAN):
+    # Call fuzzer
+    fuzzers.fuzzers[fuzzer].compile_make(command, ASAN, MSAN, UBSAN)
 
 def compile_file(file_name, fuzzer, ASAN, MSAN, UBSAN):
 

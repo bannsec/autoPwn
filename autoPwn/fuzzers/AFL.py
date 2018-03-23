@@ -115,8 +115,9 @@ class AFL(Fuzzer):
             #compile_line.append('-fsanitize=memory')
             #compile_line.append('-fsanitize-memory-track-origins')
         
-        if UBSAN:
-            compile_line.append('-fsanitize=undefined')
+        # This apparently might cause issues with AFL
+        #if UBSAN:
+        #    compile_line.append('-fsanitize=undefined')
 
         compile_line.append('-o')
         compile_line.append(out_name)
@@ -126,6 +127,23 @@ class AFL(Fuzzer):
 
         # Return the name of the new file
         return os.path.join(dir, out_name)
+
+    @staticmethod
+    def compile_make(command, ASAN, MSAN, UBSAN):
+        env = copy(os.environ)
+        env['AFL_HARDEN'] = '1' # TODO: Make this an option?
+        env['CC'] = os.path.join(AFL_ROOT, "afl-clang")
+        env['CXX'] = os.path.join(AFL_ROOT, "afl-clang++")
+        env['CFLAGS'] = "-fno-omit-frame-pointer -O2 -g"
+        env['CXXFLAGS'] = "-fno-omit-frame-pointer -O2 -g"
+
+        # These are exclusive
+        if ASAN:
+            env['AFL_USE_ASAN'] = "1"
+        elif MSAN:
+            env['AFL_USE_MSAN'] = "1"
+
+        subprocess.call(command, env=env, shell=True)
 
     ##############
     # Properties #

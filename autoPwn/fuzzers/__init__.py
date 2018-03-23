@@ -100,6 +100,11 @@ class Fuzzer(object):
         """Compile the source code as needed for this fuzzer. Return the name of the output file."""
         raise NotImplemented
 
+    @staticmethod
+    def compile_make(command, ASAN, MSAN, UBSAN):
+        """Run the command with Make environment variables."""
+        raise NotImplemented
+
     ##############
     # Properties #
     ##############
