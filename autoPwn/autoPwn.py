@@ -528,6 +528,8 @@ def main():
                         help='(optional) command line flags to give to the binary')
     parser.add_argument('--debug', action='store_true', default=False,
                         help='(optional) Enable debugging output.')
+    parser.add_argument('--disable-drill', action='store_true', default=False,
+                        help='Disable transitioning to drilling. This will keep autoPwn only in fuzzing mode.')
     parser.add_argument('--fuzzer', default='AFL', type=str,
                         help='(optional) What fuzzer to start with. Options are: {}. Default is AFL.'.format(fuzzers.fuzzers.keys()))
     #parser.add_argument('--no-auto-min', dest='no_auto_min', action='store_true',
@@ -578,9 +580,10 @@ def main():
 
 
     # Watch for the fuzzing to stall. This thread kicks off change into drilling
-    p = multiprocessing.Process(target=watcher,args=(queues,))
-    p.daemon = True
-    p.start()
+    if not args.disable_drill:
+        p = multiprocessing.Process(target=watcher,args=(queues,))
+        p.daemon = True
+        p.start()
 
     # Make sure everything is running before starting the UI
     queues['fuzzer'].put({
