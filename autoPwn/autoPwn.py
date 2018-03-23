@@ -530,6 +530,10 @@ def main():
                         help='(optional) Enable debugging output.')
     parser.add_argument('--disable-drill', action='store_true', default=False,
                         help='Disable transitioning to drilling. This will keep autoPwn only in fuzzing mode.')
+    parser.add_argument('--create-ram-mount', action='store_true', default=False,
+                        help='Create a new ram mount for your work directory. Default: False')
+    parser.add_argument('--create-ram-mount-size', type=int, metavar='size', default=512,
+                        help='Specify size in MB for the RAM mount. Default: 512')
     parser.add_argument('--fuzzer', default='AFL', type=str,
                         help='(optional) What fuzzer to start with. Options are: {}. Default is AFL.'.format(fuzzers.fuzzers.keys()))
     #parser.add_argument('--no-auto-min', dest='no_auto_min', action='store_true',
@@ -561,6 +565,13 @@ def main():
     if not os.access(config['target'], os.X_OK):
         logger.error("Your binary is not executable! Be sure to chmod it, i.e.: chmod u+x {}".format(config['target']))
         exit(1)
+
+    if args.create_ram_mount:
+        if os.path.exists(config['workDir']):
+            logger.error("Mountpoint already exists. Not creating RAM disk!")
+        else:
+            os.makedirs(config['workDir'])
+            subprocess.call(["sudo","mount","-t","tmpfs","-o","size={}m".format(args.create_ram_mount_size),"tmpfs",config['workDir']])
 
     # Load up the binary
     print("Loading up the binary")
