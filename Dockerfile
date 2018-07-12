@@ -5,13 +5,16 @@ FROM shellphish/mechaphish
 #COPY --chown=angr:angr . /home/angr/autoPwn/.
 COPY . /home/angr/autoPwn/.
 USER root
-RUN chown -R angr:angr /home/angr/autoPwn
+RUN chown -R angr:angr /home/angr/autoPwn && \
+    dpkg -i /home/angr/autoPwn/gdb*.deb || apt-get install -fy && dpkg -i /home/angr/autoPwn/gdb*.deb
 
 USER angr
 RUN . /home/angr/.virtualenvs/angr/bin/activate && \
     pip install -U pip setuptools && \
     cd /home/angr/autoPwn/ && pip install -e . && \
     echo "autoPwn -h" >> ~/.bashrc && \
-    echo "autoPwnCompile -h" >> ~/.bashrc
+    echo "autoPwnCompile -h" >> ~/.bashrc && \
+    mv /home/angr/autoPwn/gdbinit /home/angr/.gdbinit && \
+    pip install angrgdb bintrees
 
 RUN ["/bin/bash"]

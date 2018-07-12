@@ -155,7 +155,7 @@ class AFL(Fuzzer):
         """The fuzzer instance. Automatically created if it was set to None."""
 
         if self.__fuzzer is None:
-            self.__fuzzer = fuzzer.Fuzzer(self.target, self.work_dir, afl_count=self.threads, qemu=self.qemu, target_opts=self.target_args, memory="99999T")
+            self.__fuzzer = fuzzer.Fuzzer(self.target, self.work_dir, afl_count=self.threads, qemu=self.qemu, target_opts=self.target_args, memory="none")
             self.__fuzzer.dictionary = self.dictionary
 
         return self.__fuzzer
