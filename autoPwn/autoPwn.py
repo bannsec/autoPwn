@@ -22,6 +22,8 @@ import sys
 import angr, driller
 
 CHECK_INTERVAL = 5
+HERE = os.path.dirname(os.path.realpath(__file__))
+AUTOPWN_ARGV_SIZE = 64 # Default size for argv[i] buffer
 
 def checkFuzzerStatus(signum, frame):
 
@@ -41,7 +43,45 @@ def preChecks():
         print("Must have afl-fuzz installed: http://lcamtuf.coredump.cx/afl/")
         exit(1)
 
+def setup_argv_fuzzing():
+    global args
+    
+    # If no position holders, then return
+    if "@@@" not in args.argument:
+        return
+
+    if args.argument.count("@@@") > 1:
+        logger.error("Currently do not support multiple argv position fuzzing. Please select one position to fuzz.")
+        exit(1)
+
+    # Figure out what arch we're dealing with
+    target = args.binary[0]
+    proj = angr.Project(target,load_options={'auto_load_libs': False})
+
+    # Supported archs
+    arch = proj.loader.main_object.arch.name
+    if arch == "AMD64":
+        logger.warn("Fuzzing argv requires a little binary modification. Creating and fuzzing .patched.")
+        logger.warn("Fuzzer->Driller handoff for argv fuzzing is likely broken. Recommend using '--disable-drill' option for now.") # TODO: Make driller handoff work...
+
+        # Set environment vars
+        os.environ['AUTOPWN_ARGV'] = str(args.argument.index("@@@") + 1)
+        os.environ['AUTOPWN_ARGV_SIZE'] = str(AUTOPWN_ARGV_SIZE) # TODO: Maybe this should be an optional variable?
+
+        subprocess.check_output(['patch', target, os.path.join(HERE, "patches", "argv_amd64.py")], env=os.environ)
+
+        # Overwrite the calling args
+        args.binary[0] = target + ".patched"
+        args.argument[int(os.environ['AUTOPWN_ARGV']) - 1] = "A"*AUTOPWN_ARGV_SIZE
+
+    else:
+        logger.error("Currently do not support argv fuzzing for architecture '{}'".format(arch))
+        exit(1)
+
+
 def getConfig():
+    setup_argv_fuzzing()
+
     config = {}
     config['cycles_done'] = 0
     print("Setting up fuzz configuration")
