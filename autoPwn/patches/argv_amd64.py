@@ -7,6 +7,35 @@ import os
 # Example: AUTOPWN_ARGV=1 AUTOPWN_ARGV_SIZE=16 patch <binary> argv_amd64.py
 #
 
+asm_intro = r"""
+# Save regs
+push rax
+push rdi
+push rsi
+push rdx
+"""
+
+asm_outro = r"""
+pop rdx
+pop rsi
+pop rdi
+pop rax
+ret
+"""
+
+asm_read = r"""
+# Read in stuff
+mov rax, 0                   # SYS_read
+mov rdi, 0                   # fd
+mov rsi, [rsp + {offset:d}]  # buf
+mov rdx, {size:d}            # size
+syscall
+
+# Null terminate
+xor edx, edx                 # patchkit quirk. can't move immediate for now.
+mov [rsi + rax - 1], dl      # TODO: Assuming newline for now.. Probably shouldn't assume that.
+"""
+
 def patch(pt):
     argv_offset = 0x30
 
@@ -16,30 +45,15 @@ def patch(pt):
     # Size to fuzz
     size = int(os.environ['AUTOPWN_ARGV_SIZE'],0)
 
-    base = pt.binary.next_alloc()
-    addr = pt.inject(asm=r'''
-    # Save regs
-    push rax
-    push rdi
-    push rsi
-    push rdx
+    # Save off regs
+    asm = asm_intro
 
-    # Read in stuff
-    mov rax, 0                   # SYS_read
-    mov rdi, 0                   # fd
-    mov rsi, [rsp + {offset:d}]  # buf
-    mov rdx, {size:d}            # size
-    syscall
-
-    # Null terminate
-    xor edx, edx                 # patchkit quirk. can't move immediate for now.
-    mov [rsi + rax - 1], dl      # TODO: Assuming newline for now.. Probably shouldn't assume that.
+    # Read input from stdin
+    asm += asm_read.format(size=size, offset=(argv_offset + 8*argv))
 
     # Restore regs
-    pop rdx
-    pop rsi
-    pop rdi
-    pop rax
-    ret
-    '''.format(size=size, offset=(argv_offset + 8*argv)))
+    asm += asm_outro
+
+    base = pt.binary.next_alloc()
+    addr = pt.inject(asm=asm)
     pt.hook(pt.entry, addr)
