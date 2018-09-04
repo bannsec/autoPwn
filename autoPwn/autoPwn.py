@@ -50,9 +50,8 @@ def setup_argv_fuzzing():
     if "@@@" not in args.argument:
         return
 
-    if args.argument.count("@@@") > 1:
-        logger.error("Currently do not support multiple argv position fuzzing. Please select one position to fuzz.")
-        exit(1)
+    # Parse out which args (for instance, [1] if "@@@" is the first argument, [1,5] for the first and fifth, etc).
+    args.fuzzed_argument = [i+1 for i, val in enumerate(args.argument) if val == "@@@"]
 
     # Figure out what arch we're dealing with
     target = args.binary[0]
@@ -65,14 +64,16 @@ def setup_argv_fuzzing():
         logger.warn("Fuzzer->Driller handoff for argv fuzzing is likely broken. Recommend using '--disable-drill' option for now.") # TODO: Make driller handoff work...
 
         # Set environment vars
-        os.environ['AUTOPWN_ARGV'] = str(args.argument.index("@@@") + 1)
-        os.environ['AUTOPWN_ARGV_SIZE'] = str(AUTOPWN_ARGV_SIZE) # TODO: Maybe this should be an optional variable?
+        os.environ['AUTOPWN_ARGV'] = ",".join(str(i) for i in args.fuzzed_argument)
+        os.environ['AUTOPWN_ARGV_SIZE'] = ",".join([str(AUTOPWN_ARGV_SIZE)] * len(args.fuzzed_argument)) # TODO: Maybe this should be an optional variable?
 
         subprocess.check_output(['patch', target, os.path.join(HERE, "patches", "argv_amd64.py")], env=os.environ)
 
         # Overwrite the calling args
         args.binary[0] = target + ".patched"
-        args.argument[int(os.environ['AUTOPWN_ARGV']) - 1] = "A"*AUTOPWN_ARGV_SIZE
+        for i in args.fuzzed_argument:
+            args.argument[i - 1] = "A"*AUTOPWN_ARGV_SIZE
+            #args.argument[int(os.environ['AUTOPWN_ARGV']) - 1] = "A"*AUTOPWN_ARGV_SIZE
 
     else:
         logger.error("Currently do not support argv fuzzing for architecture '{}'".format(arch))

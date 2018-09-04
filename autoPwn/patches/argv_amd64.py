@@ -4,7 +4,7 @@ import os
 # Written by BannSec
 # Be sure to set environment variable to specify which argv to fuzz and the size
 # 
-# Example: AUTOPWN_ARGV=1 AUTOPWN_ARGV_SIZE=16 patch <binary> argv_amd64.py
+# Example: AUTOPWN_ARGV=1,2 AUTOPWN_ARGV_SIZE=16,16 patch <binary> argv_amd64.py
 #
 
 asm_intro = r"""
@@ -40,16 +40,17 @@ def patch(pt):
     argv_offset = 0x30
 
     # Which argv to fuzz. I.e.: 0,1,2,3
-    argv = int(os.environ['AUTOPWN_ARGV'],0)
+    argv = [int(v,0) for v in os.environ['AUTOPWN_ARGV'].split(",")]
 
     # Size to fuzz
-    size = int(os.environ['AUTOPWN_ARGV_SIZE'],0)
+    size = [int(s,0) for s in os.environ['AUTOPWN_ARGV_SIZE'].split(",")]
 
     # Save off regs
     asm = asm_intro
 
-    # Read input from stdin
-    asm += asm_read.format(size=size, offset=(argv_offset + 8*argv))
+    for a, s in zip(argv, size):
+        # Read input from stdin
+        asm += asm_read.format(size=s, offset=(argv_offset + 8*a))
 
     # Restore regs
     asm += asm_outro
