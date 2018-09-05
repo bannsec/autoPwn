@@ -559,14 +559,24 @@ def _orchestrateDrill(me):
 # Main Section #
 ################
 
+epilog = """
+examples:
+
+  Fuzz the translate command (tr) ARGV[1] and ARGV[2] positional arguments.
+    - autoPwn ./ls @@@ @@@
+
+  Fuzz the second argv command for translate.
+    - autoPwn ./tr [:lower:] @@@
+"""
+
 def main():
     global queues, args, proj, cfg, config
 
-    parser = argparse.ArgumentParser(description='Automate some basic fuzzing management')
+    parser = argparse.ArgumentParser(description='Automate some basic fuzzing management', epilog=epilog, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('binary', type=str, nargs=1,
                         help = "Binary to auto fuzz")
     parser.add_argument('argument', type=str, nargs='*',
-                        help='(optional) command line flags to give to the binary')
+                        help='(optional) command line flags to give to the binary. You can use "@@" for AFL file parameter fuzz. Also, autoPwn specifically supports "@@@" to fuzz argv parameters themselves.')
     parser.add_argument('--debug', action='store_true', default=False,
                         help='(optional) Enable debugging output.')
     parser.add_argument('--disable-drill', action='store_true', default=False,
