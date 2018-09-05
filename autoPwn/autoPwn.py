@@ -59,7 +59,7 @@ def setup_argv_fuzzing():
 
     # Supported archs
     arch = proj.loader.main_object.arch.name
-    if arch == "AMD64":
+    if arch in ["AMD64", "X86"]:
         logger.warn("Fuzzing argv requires a little binary modification. Creating and fuzzing .patched.")
         logger.warn("Fuzzer->Driller handoff for argv fuzzing is likely broken. Recommend using '--disable-drill' option for now.") # TODO: Make driller handoff work...
 
@@ -67,7 +67,7 @@ def setup_argv_fuzzing():
         os.environ['AUTOPWN_ARGV'] = ",".join(str(i) for i in args.fuzzed_argument)
         os.environ['AUTOPWN_ARGV_SIZE'] = ",".join([str(AUTOPWN_ARGV_SIZE)] * len(args.fuzzed_argument)) # TODO: Maybe this should be an optional variable?
 
-        subprocess.check_output(['patch', target, os.path.join(HERE, "patches", "argv_amd64.py")], env=os.environ)
+        subprocess.check_output(['patch', target, os.path.join(HERE, "patches", "argv_{}.py".format(arch.lower()))], env=os.environ)
 
         # Overwrite the calling args
         args.binary[0] = target + ".patched"
