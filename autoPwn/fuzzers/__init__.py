@@ -7,12 +7,14 @@ import os
 import pkgutil
 import importlib
 
+from .. import Config as GlobalConfig
+
 here = os.path.dirname(os.path.abspath(__file__))
 
 # Base fuzzer class to extend
 class Fuzzer(object):
 
-    def __init__(self, target, target_args, work_dir, threads, queues, bininfo):
+    def __init__(self, target, target_args, work_dir, threads, bininfo):
         """Instantiate a new fuzzer.
 
         Args:
@@ -20,7 +22,6 @@ class Fuzzer(object):
             target_args (str): String arguments to pass to the binary.
             work_dir (str): location of directory to store work info (full path)
             threads (int): How many threads to use when fuzzing.
-            queues (dict): Dictionary of Queue objects for interprocess communication.
             bininfo: bininfo for more information about this binary.
         """
         raise Exception("Not implemented.")
@@ -41,9 +42,9 @@ class Fuzzer(object):
         while True:
 
             # Get the next command
-            item = self.queues['fuzzer'].get()
+            item = GlobalConfig.queues['fuzzer'].get()
             command = item['command']
-            replyto = self.queues[item['replyto']] if item['replyto'] is not None else None
+            replyto = GlobalConfig.queues[item['replyto']] if item['replyto'] is not None else None
 
             # Pull out the args to this call
             kwargs = copy(item)
@@ -143,16 +144,6 @@ class Fuzzer(object):
     def threads(self, threads):
         assert type(threads) is int, "Invalid type for threads of '{}'".format(type(threads))
         self.__threads = threads
-        
-    @property
-    def queues(self):
-        """dict: Queues for inter-process communication"""
-        return self.__queues
-
-    @queues.setter
-    def queues(self, queues):
-        assert type(queues) is dict, "Invalid type for queues of '{}'".format(type(queues))
-        self.__queues = queues
         
     @property
     def target_args(self):

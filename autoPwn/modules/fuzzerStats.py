@@ -1,15 +1,16 @@
 
+from .. import Config as GlobalConfig
+
 class FuzzerStats:
     """
     Prints stats of the current fuzzer
     """
 
-    def __init__(self,queues):
+    def __init__(self):
         """
         proj = angr.Project
         cfg = proj.analyses.CFG()
         """
-        self._queues = queues
         self.drilling = False # Hack for now...
         self._me = 'fuzzstats'
         self._s = "Not running"
@@ -18,34 +19,34 @@ class FuzzerStats:
         self._console = console
 
     def _fuzzer_alive(self):
-        fuzzer = self._queues['fuzzer']
+        fuzzer = GlobalConfig.queues['fuzzer']
         
         fuzzer.put({
             'command': 'alive',
             'replyto': self._me
         })
         
-        return self._queues[self._me].get()
+        return GlobalConfig.queues[self._me].get()
 
     def _driller_alive(self):
-        fuzzer = self._queues['driller']
+        fuzzer = GlobalConfig.queues['driller']
         
         fuzzer.put({
             'command': 'alive',
             'replyto': self._me
         })
         
-        return self._queues[self._me].get()
+        return GlobalConfig.queues[self._me].get()
 
     def _fuzzer_stats(self):
-        fuzzer = self._queues['fuzzer']
+        fuzzer = GlobalConfig.queues['fuzzer']
         
         fuzzer.put({
             'command': 'stats',
             'replyto': self._me
         })
         
-        return self._queues[self._me].get()
+        return GlobalConfig.queues[self._me].get()
 
     def draw(self,height,width):
 
@@ -56,7 +57,7 @@ class FuzzerStats:
     def preDraw(self):
         """Predrawing so that we don't have that lag time when actually drawing"""
 
-        fuzzer = self._queues['fuzzer']
+        fuzzer = GlobalConfig.queues['fuzzer']
         
         alive = self._fuzzer_alive()
         drilling = self._driller_alive()

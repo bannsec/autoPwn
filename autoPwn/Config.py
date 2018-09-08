@@ -10,3 +10,7 @@ def get_proj_cfg():
         cfg = proj.analyses.CFG()
 
     return cfg
+
+# proj = angr Project
+# cfg = proj.analysis.CFG(), but use get_proj_cfg() instead
+# queues = multiprocess queues to use for communication

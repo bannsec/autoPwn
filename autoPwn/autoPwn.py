@@ -249,7 +249,7 @@ def setupUI():
     main_menu.addItem("O","(O)ptions")
     main_menu.addItem("Q","(Q)uit")
 
-    fuzzstats = modules.fuzzerStats.FuzzerStats(queues)
+    fuzzstats = modules.fuzzerStats.FuzzerStats()
 
     console.createView("MainMenu")
     console.setActiveView("MainMenu")
@@ -325,7 +325,7 @@ def doSetDictionary():
     dictionary = raw_input("Directory or file to use as AFL dictionary: ")
 
     # Request the fuzzer to pollinate for us
-    queues['fuzzer'].put({
+    GlobalConfig.queues['fuzzer'].put({
         'command': 'set_dictionary',
         'replyto': None,
         'dictionary': dictionary
@@ -349,7 +349,7 @@ def doPollinate():
                 seeds.append(f.read())
 
     # Request the fuzzer to pollinate for us
-    queues['fuzzer'].put({
+    GlobalConfig.queues['fuzzer'].put({
         'command': 'pollenate',
         'replyto': None,
         'paths': seeds,
@@ -360,7 +360,7 @@ def doStart():
     """Handle starting everything up."""
     
     # Start up the fuzzer   
-    queues['fuzzer'].put({
+    GlobalConfig.queues['fuzzer'].put({
         'command': 'start',
         'replyto': None
     })
@@ -376,12 +376,12 @@ def doStart():
      
 def doExit():
     # Tell our procs to exit
-    queues['fuzzer'].put({
+    GlobalConfig.queues['fuzzer'].put({
         'command': 'quit',
         'replyto': None
     })
 
-    queues['driller'].put({
+    GlobalConfig.queues['driller'].put({
         'command': 'quit',
         'replyto': None
     })
@@ -392,15 +392,15 @@ def doExit():
 # Driller Thread Section #
 ##########################
 
-def _driller(queues,binary):
+def _driller(binary):
     procs = [] # TODO: Maybe remove dead procs??
 
     while True:
 
-        item = queues['driller'].get()
+        item = GlobalConfig.queues['driller'].get()
 
         command = item['command']
-        replyto = queues[item['replyto']] if item['replyto'] is not None else None
+        replyto = GlobalConfig.queues[item['replyto']] if item['replyto'] is not None else None
 
         if command == "alive":
             replyto.put(any(p.is_alive() for p in procs))
@@ -409,7 +409,6 @@ def _driller(queues,binary):
 
             # Spawn off subprocess for drilling
             p = multiprocessing.Process(target=_doDrill,kwargs={
-                'queues': queues,
                 'path': item['path'],
                 'replyto': replyto,
                 'bitmap': item['bitmap'],
@@ -425,7 +424,7 @@ def _driller(queues,binary):
             return
 
 
-def _doDrill(queues,path,replyto,bitmap,binary):
+def _doDrill(path,replyto,bitmap,binary):
     
     # Setup a new driller
     drill = driller.Driller(binary=binary,input_str=path,fuzz_bitmap=bitmap)
@@ -445,7 +444,7 @@ def _doDrill(queues,path,replyto,bitmap,binary):
 ##########################
 
 
-def watcher(queues):
+def watcher():
     me = "watcher"
     
     while True:
@@ -453,22 +452,22 @@ def watcher(queues):
         sleep(5)
 
         # If we haven't started yet, just pass
-        queues['fuzzer'].put({
+        GlobalConfig.queues['fuzzer'].put({
             'command': 'alive',
             'replyto': me
         })
 
-        fuzzer_alive = queues[me].get()
+        fuzzer_alive = GlobalConfig.queues[me].get()
         if not fuzzer_alive:
             continue
         
         # Grab the fuzzer stats
-        queues['fuzzer'].put({
+        GlobalConfig.queues['fuzzer'].put({
             'command': 'stats',
             'replyto': me
         })
 
-        fuzzer_stats = queues[me].get()
+        fuzzer_stats = GlobalConfig.queues[me].get()
 
         # If we have no more pending favs, we should move on.
         pending_favs = sum(int(fuzzer_stats[x]['pending_favs']) for x in fuzzer_stats)
@@ -489,26 +488,26 @@ def _orchestrateDrill(me):
             """
             
             # Kill the fuzzer, free up resources for drilling
-            queues['fuzzer'].put({
+            GlobalConfig.queues['fuzzer'].put({
                 'command': 'kill',
                 'replyto': None
             })
 
             # Grab the current paths
-            queues['fuzzer'].put({
+            GlobalConfig.queues['fuzzer'].put({
                 'command': 'get_paths',
                 'replyto': me
             })
     
-            paths = queues[me].get()
+            paths = GlobalConfig.queues[me].get()
 
             # Grab the current bitmap
-            queues['fuzzer'].put({
+            GlobalConfig.queues['fuzzer'].put({
                 'command': 'get_bitmap',
                 'replyto': me,
             })
 
-            bitmap = queues[me].get()
+            bitmap = GlobalConfig.queues[me].get()
             if bitmap == None:
                 raise Exception("bitmap is None value. Something went wrong. Try removing the work directory and starting over again fresh")
 
@@ -516,7 +515,7 @@ def _orchestrateDrill(me):
             for path in paths:
                 
                 # Submit the drill job
-                queues['driller'].put({
+                GlobalConfig.queues['driller'].put({
                     'command': 'drill',
                     'replyto': me,
                     'path': path,
@@ -524,20 +523,20 @@ def _orchestrateDrill(me):
                 })
                 
                 # Get the results
-                new_paths = queues[me].get()
+                new_paths = GlobalConfig.queues[me].get()
 
                 # If we actually got results, time to reseed
                 if len(new_paths) > 0:
 
                     # Request the pollination
-                    queues['fuzzer'].put({
+                    GlobalConfig.queues['fuzzer'].put({
                         'command': 'pollenate',
                         'replyto': None,
                         'paths': list(new_paths),
                     })
                     
                     # Don't waste time drilling. See if AFL finds more now.
-                    queues['fuzzer'].put({
+                    GlobalConfig.queues['fuzzer'].put({
                         'command': 'start',
                         'replyto': None,
                     })
@@ -546,7 +545,7 @@ def _orchestrateDrill(me):
 
             else:
                 # Don't waste time drilling. See if AFL finds more now.
-                queues['fuzzer'].put({
+                GlobalConfig.queues['fuzzer'].put({
                     'command': 'start',
                     'replyto': None,
                 })
@@ -571,7 +570,7 @@ examples:
 """
 
 def main():
-    global queues, args, config
+    global args, config
 
     parser = argparse.ArgumentParser(description='Automate some basic fuzzing management', epilog=epilog, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('binary', type=str, nargs=1,
@@ -605,7 +604,7 @@ def main():
         config = readConfig(args.config_file)
 
     # Setup some queues
-    queues = {
+    GlobalConfig.queues = {
         'fuzzer': multiprocessing.Queue(),
         'driller': multiprocessing.Queue(),
         'fuzzstats': multiprocessing.Queue(),
@@ -632,33 +631,33 @@ def main():
     setupUI()
 
     # Start up fuzzer proc
-    fuzzer = fuzzers.fuzzers[args.fuzzer](target=config['target'], target_args=config['arguments'], work_dir=config['workDir'],threads=config['threads'],queues=queues,bininfo=bininfo)
+    fuzzer = fuzzers.fuzzers[args.fuzzer](target=config['target'], target_args=config['arguments'], work_dir=config['workDir'],threads=config['threads'], bininfo=bininfo)
     p = multiprocessing.Process(target=fuzzer.daemon)
     p.start()
 
     # Start up driller proc
-    p = multiprocessing.Process(target=_driller,kwargs={'queues':queues,'binary':config['target']})
+    p = multiprocessing.Process(target=_driller,kwargs={'binary':config['target']})
     p.start()
 
 
     # Watch for the fuzzing to stall. This thread kicks off change into drilling
     if not args.disable_drill:
-        p = multiprocessing.Process(target=watcher,args=(queues,))
+        p = multiprocessing.Process(target=watcher)
         p.daemon = True
         p.start()
 
     # Make sure everything is running before starting the UI
-    queues['fuzzer'].put({
+    GlobalConfig.queues['fuzzer'].put({
         'command': 'alive',
         'replyto': 'main'
     })
-    queues['main'].get()
+    GlobalConfig.queues['main'].get()
 
-    queues['driller'].put({
+    GlobalConfig.queues['driller'].put({
         'command': 'alive',
         'replyto': 'main'
     })
-    queues['main'].get()
+    GlobalConfig.queues['main'].get()
 
     doMainMenu()
 
