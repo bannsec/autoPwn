@@ -44,130 +44,11 @@ def preChecks():
         print("Must have afl-fuzz installed: http://lcamtuf.coredump.cx/afl/")
         exit(1)
 
-def setup_argv_fuzzing():
-    global args
-    
-    # If no position holders, then return
-    if "@@@" not in args.argument:
-        return
-
-    # Parse out which args (for instance, [1] if "@@@" is the first argument, [1,5] for the first and fifth, etc).
-    args.fuzzed_argument = [i+1 for i, val in enumerate(args.argument) if val == "@@@"]
-
-    # Figure out what arch we're dealing with
-    target = args.binary[0]
-    proj = angr.Project(target,load_options={'auto_load_libs': False})
-
-    # Supported archs
-    arch = proj.loader.main_object.arch.name
-    if arch in ["AMD64", "X86"]:
-        logger.warn("Fuzzing argv requires a little binary modification. Creating and fuzzing .patched.")
-        logger.warn("Fuzzer->Driller handoff for argv fuzzing is likely broken. Recommend using '--disable-drill' option for now.") # TODO: Make driller handoff work...
-
-        # Set environment vars
-        os.environ['AUTOPWN_ARGV'] = ",".join(str(i) for i in args.fuzzed_argument)
-        os.environ['AUTOPWN_ARGV_SIZE'] = ",".join([str(AUTOPWN_ARGV_SIZE)] * len(args.fuzzed_argument)) # TODO: Maybe this should be an optional variable?
-
-        subprocess.check_output(['patch', target, os.path.join(HERE, "patches", "argv_{}.py".format(arch.lower()))], env=os.environ)
-
-        # Overwrite the calling args
-        args.binary[0] = target + ".patched"
-        for i in args.fuzzed_argument:
-            args.argument[i - 1] = "A"*AUTOPWN_ARGV_SIZE
-            #args.argument[int(os.environ['AUTOPWN_ARGV']) - 1] = "A"*AUTOPWN_ARGV_SIZE
-
-    else:
-        logger.error("Currently do not support argv fuzzing for architecture '{}'".format(arch))
-        exit(1)
-
-
-def getConfig():
-    setup_argv_fuzzing()
-
-    config = {}
-    config['cycles_done'] = 0
-    print("Setting up fuzz configuration")
-
-    #target = input("Target Binary (full or relative path): ")
-    target = args.binary[0]
-
-    # Change it to abs path
-    target = os.path.abspath(target)
-    config["target"] = target
-    
-    # Ensure the file exists
-    if not os.path.isfile(target):
-        print("That file doesn't appear to exist...")
-        exit(1)
-
-
-    #cmdline = input("Command line args: ")
-    #config["cmdline"] = cmdline
-
-    defaultThreads = multiprocessing.cpu_count()
-    #threads = input("Number of cores (default: {0}): ".format(defaultThreads))
-    #threads = defaultThreads if threads == "" else int(threads)
-    config["threads"] = defaultThreads
- 
-
-    #inDir = input("Test Case Dir (default: 'in/'): ")
-    #inDir = "in" if inDir == "" else inDir
-    workDir = os.path.abspath("work")
-    config["workDir"] = workDir
-
-
-    #outDir = input("Test Case Dir (default: 'out/'): ")
-    #outDir = "out" if outDir == "" else outDir
-    #outDir = os.path.abspath(outDir)
-    #config["outDir"] = outDir
-
-
-    #memory = input("Max memory (default: 200): ")
-    #memory = int(memory) if memory is not "" else 200
-    config["memory"] = "8G"
-    
-    config["arguments"] = args.argument
-
-    return config
-
-
-def writeConfig(config):
-    with open("autoPwn.config","w") as f:
-        f.write("[afl.dirs]\n")
-        f.write("work = {0}\n".format(config["workDir"]))
-        f.write("\n[target]\n")
-        f.write("target = {0}\n".format(config["target"]))
-        #f.write("cmdline = {0}\n".format(config["cmdline"]))
-        f.write("\n[afl.ctrl]\n")
-        f.write("file = \n")
-        f.write("timeout = 200+\n")
-        f.write("mem_limit = {0}\n".format(config["memory"]))
-        f.write("qemu = on\n")
-        f.write("threads = {0}\n".format(config['threads']))
-        #f.write("cpu_affinity = {0}".format(' '.join([str(x) for x in range(config['threads'])])) + "\n")
-        f.write("\n[afl.behavior]\n")
-        f.write("dirty = off\n")
-        f.write("dumb = off\n")
-        f.write("arguments = {0}".format(config["arguments"]))
-
-def readConfig(config_file):
-    config = configparser.ConfigParser()
-    config.read(config_file)
-    newConfig = {}
-    newConfig['workDir'] = config['afl.dirs']['work']
-    newConfig['target'] = config['target']['target']
-    #newConfig['cmdline'] = config['target']['cmdline']
-    newConfig['memory'] = int(config['afl.ctrl']['mem_limit'])
-    #newConfig['threads'] = len(config['afl.ctrl']['cpu_affinity'].split(" "))
-    newConfig['threads'] = int(config['afl.ctrl']['threads'])
-    #newConfig['cycles_done'] = 0 # Intentionally going to be wrong here to initiate path clean
-    
-    return newConfig
 
 def runAFL(cmd=None):
     cmd = "start" if cmd is None else cmd
 
-    subprocess.check_output("afl-multicore -i - -c autoPwn.config {1} {0}".format(config['threads'],cmd),shell=True)
+    subprocess.check_output("afl-multicore -i - -c autoPwn.config {1} {0}".format(GlobalConfig.threads,cmd),shell=True)
     # It adds our python instance into the kill file too... Let's remove that :-)
     try:
         subprocess.check_output("grep -v {0} /tmp/afl_multicore.PGID.SESSION > /tmp/afl_multicore.PGID.SESSION2".format(os.getpgid(0)),shell=True)
@@ -178,7 +59,7 @@ def runAFL(cmd=None):
 
 def collectExploits():
         exploits = os.path.abspath('exploits')
-        subprocess.check_output("afl-collect -e gdb_script -j {0} -m -r -rr {1} {4} -- {2} {3}".format(config['threads'],config['outDir'],config['target'],config['cmdline'],exploits),shell=True)
+        subprocess.check_output("afl-collect -e gdb_script -j {0} -m -r -rr {1} {4} -- {2} {3}".format(GlobalConfig.threads,GlobalConfig.out_dir,GlobalConfig.target,GlobalConfig.cmdline,exploits),shell=True)
         exploitMin = os.path.abspath("exploit_min")
         
         try:
@@ -189,7 +70,7 @@ def collectExploits():
         for exp in glob.glob(os.path.join(exploits,"S*")):
             #print("Checking",exp)
             base = os.path.basename(exp)
-            o = subprocess.check_output("afl-tmin -i {0} -o {1} -Q -m {4} -- {2} {3}".format(exp,os.path.join(exploitMin,base),config['target'],config['cmdline'],config["memory"]),shell=True)
+            o = subprocess.check_output("afl-tmin -i {0} -o {1} -Q -m {4} -- {2} {3}".format(exp,os.path.join(exploitMin,base),GlobalConfig.target,GlobalConfig.cmdline,GlobalConfig.memory),shell=True)
             #print(o.decode('ascii'))
 
         shutil.rmtree(exploits)
@@ -202,7 +83,7 @@ def collectAllPaths():
 
         # TODO: Handle this better. Sometimes there will be dups
         try:
-            subprocess.check_output("cp {0}/*/queue/* {1}".format(config['outDir'],paths),shell=True)
+            subprocess.check_output("cp {0}/*/queue/* {1}".format(GlobalConfig.out_dir,paths),shell=True)
         except:
             pass
 
@@ -213,8 +94,7 @@ def collectAllPaths():
         except:
             pass
 
-        subprocess.check_output("afl-cmin -i {0} -o {1} -Q -m {2} -- {3} {4}".format(paths,pathsCMin,config["memory"],config["target"],config["cmdline"]),shell=True)
-
+        subprocess.check_output("afl-cmin -i {0} -o {1} -Q -m {2} -- {3} {4}".format(paths,pathsCMin,GlobalConfig.memory,GlobalConfig.target,GlobalConfig.cmdline),shell=True)
 
         pathsMin = os.path.abspath("paths_min")
         
@@ -226,7 +106,7 @@ def collectAllPaths():
         for exp in glob.glob(os.path.join(pathsCMin,"*")):
             #print("Checking",exp)
             base = os.path.basename(exp)
-            o = subprocess.check_output("afl-tmin -i {0} -o {1} -Q -m {4} -- {2} {3}".format(exp,os.path.join(pathsMin,base),config['target'],config['cmdline'],config["memory"]),shell=True)
+            o = subprocess.check_output("afl-tmin -i {0} -o {1} -Q -m {4} -- {2} {3}".format(exp,os.path.join(pathsMin,base),GlobalConfig.target,GlobalConfig.cmdline,GlobalConfig.memory),shell=True)
             #print(o.decode('ascii'))
 
         shutil.rmtree(paths)
@@ -570,7 +450,7 @@ examples:
 """
 
 def main():
-    global args, config
+    global args 
 
     parser = argparse.ArgumentParser(description='Automate some basic fuzzing management', epilog=epilog, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('binary', type=str, nargs=1,
@@ -597,8 +477,8 @@ def main():
 
     args.config_file = None
     if args.config_file is None:
-        config = getConfig()
-        writeConfig(config)
+        GlobalConfig.populate_config_from_args(args)
+        #writeConfig(config)
 
     else:
         config = readConfig(args.config_file)
@@ -613,30 +493,30 @@ def main():
     }
 
     # Check binary is executable...
-    if not os.access(config['target'], os.X_OK):
-        logger.error("Your binary is not executable! Be sure to chmod it, i.e.: chmod u+x {}".format(config['target']))
+    if not os.access(GlobalConfig.target, os.X_OK):
+        logger.error("Your binary is not executable! Be sure to chmod it, i.e.: chmod u+x {}".format(GlobalConfig.target))
         exit(1)
 
     if args.create_ram_mount:
-        if os.path.exists(config['workDir']):
+        if os.path.exists(GlobalConfig.work_dir):
             logger.error("Mountpoint already exists. Not creating RAM disk!")
         else:
-            os.makedirs(config['workDir'])
-            subprocess.call(["sudo","mount","-t","tmpfs","-o","size={}m".format(args.create_ram_mount_size),"tmpfs",config['workDir']])
+            os.makedirs(GlobalConfig.work_dir)
+            subprocess.call(["sudo","mount","-t","tmpfs","-o","size={}m".format(args.create_ram_mount_size),"tmpfs",GlobalConfig.work_dir])
 
     # Load up the binary
     print("Loading up the binary")
-    GlobalConfig.proj = angr.Project(config['target'],load_options={'auto_load_libs': False})
+    GlobalConfig.proj = angr.Project(GlobalConfig.target,load_options={'auto_load_libs': False})
 
     setupUI()
 
     # Start up fuzzer proc
-    fuzzer = fuzzers.fuzzers[args.fuzzer](target=config['target'], target_args=config['arguments'], work_dir=config['workDir'],threads=config['threads'], bininfo=bininfo)
+    fuzzer = fuzzers.fuzzers[args.fuzzer](target=GlobalConfig.target, target_args=GlobalConfig.arguments, work_dir=GlobalConfig.work_dir,threads=GlobalConfig.threads, bininfo=bininfo)
     p = multiprocessing.Process(target=fuzzer.daemon)
     p.start()
 
     # Start up driller proc
-    p = multiprocessing.Process(target=_driller,kwargs={'binary':config['target']})
+    p = multiprocessing.Process(target=_driller,kwargs={'binary':GlobalConfig.target})
     p.start()
 
 
