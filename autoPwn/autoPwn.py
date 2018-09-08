@@ -271,7 +271,8 @@ def doExit():
 # Driller Thread Section #
 ##########################
 
-def _driller(binary):
+def _driller():
+    binary = GlobalConfig.target
     procs = [] # TODO: Maybe remove dead procs??
 
     while True:
@@ -515,7 +516,7 @@ def main():
     p.start()
 
     # Start up driller proc
-    p = multiprocessing.Process(target=_driller,kwargs={'binary':GlobalConfig.target})
+    p = multiprocessing.Process(target=_driller)
     p.start()
 
 
