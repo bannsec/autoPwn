@@ -23,14 +23,13 @@ AFL_ROOT = "/home/angr/.virtualenvs/angr/bin/afl-unix/"
 
 class AFL(Fuzzer):
 
-    def __init__(self, target, target_args, work_dir, threads, bininfo):
+    def __init__(self, bininfo):
         
         self.fuzzer = None
-
-        self.target = target
-        self.target_args = target_args
-        self.work_dir = work_dir
-        self.threads = threads
+        self.target = GlobalConfig.target
+        self.target_args = GlobalConfig.arguments
+        self.work_dir = GlobalConfig.work_dir
+        self.threads = GlobalConfig.threads
 
         # Use QEMU or not?
         self.qemu = not bininfo.afl

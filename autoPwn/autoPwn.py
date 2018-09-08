@@ -510,7 +510,7 @@ def main():
     setupUI()
 
     # Start up fuzzer proc
-    fuzzer = fuzzers.fuzzers[args.fuzzer](target=GlobalConfig.target, target_args=GlobalConfig.arguments, work_dir=GlobalConfig.work_dir,threads=GlobalConfig.threads, bininfo=bininfo)
+    fuzzer = fuzzers.fuzzers[args.fuzzer](bininfo=bininfo)
     p = multiprocessing.Process(target=fuzzer.daemon)
     p.start()
 

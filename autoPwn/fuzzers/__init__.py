@@ -14,14 +14,10 @@ here = os.path.dirname(os.path.abspath(__file__))
 # Base fuzzer class to extend
 class Fuzzer(object):
 
-    def __init__(self, target, target_args, work_dir, threads, bininfo):
+    def __init__(self, bininfo):
         """Instantiate a new fuzzer.
 
         Args:
-            target (str): location of binary to fuzz (full path)
-            target_args (str): String arguments to pass to the binary.
-            work_dir (str): location of directory to store work info (full path)
-            threads (int): How many threads to use when fuzzing.
             bininfo: bininfo for more information about this binary.
         """
         raise Exception("Not implemented.")
