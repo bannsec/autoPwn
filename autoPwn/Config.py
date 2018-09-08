@@ -8,6 +8,9 @@ import subprocess
 import multiprocessing
 import angr
 
+HERE = os.path.dirname(os.path.realpath(__file__))
+AUTOPWN_ARGV_SIZE = 64 # Default size for argv[i] buffer
+
 class GlobalConfig(object):
 
     #

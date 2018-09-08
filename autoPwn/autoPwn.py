@@ -24,7 +24,6 @@ import angr, driller
 
 CHECK_INTERVAL = 5
 HERE = os.path.dirname(os.path.realpath(__file__))
-AUTOPWN_ARGV_SIZE = 64 # Default size for argv[i] buffer
 
 def checkFuzzerStatus(signum, frame):
 
