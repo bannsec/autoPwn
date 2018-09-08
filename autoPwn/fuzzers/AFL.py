@@ -5,6 +5,7 @@ import os
 import subprocess
 import shlex
 from . import *
+from .. import Config as GlobalConfig
 
 try:
     import tracer, angr, simuvex, fuzzer

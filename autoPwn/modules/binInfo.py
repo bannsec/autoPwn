@@ -1,14 +1,12 @@
 
+from .. import Config as GlobalConfig
+
 class BinInfo:
     """
     Prints out a table of information about the current binary.
     """
 
-    def __init__(self,proj):
-        """
-        proj = angr.Project
-        """
-        self._proj = proj
+    def __init__(self):
         self._table = None
 
         # Draw ourselves to init.
@@ -31,20 +29,20 @@ class BinInfo:
         row = []
         
         # Binary
-        row.append(self._proj.loader.main_object.binary)
+        row.append(GlobalConfig.proj.loader.main_object.binary)
 
         # Arch
-        row.append(self._proj.loader.main_object.arch.name)
+        row.append(GlobalConfig.proj.loader.main_object.arch.name)
         
         # File Type
-        row.append(type(self._proj.loader.main_object).__name__)
+        row.append(type(GlobalConfig.proj.loader.main_object).__name__)
 
         # RELRO (need to get this into CLE proper..)
-        if 'DT_BIND_NOW' in self._proj.loader.main_object._dynamic:
+        if 'DT_BIND_NOW' in GlobalConfig.proj.loader.main_object._dynamic:
             self.relro = "full"
             row.append(colored("Full","green"))
 
-        elif any("GNU_RELRO" in segment.header.p_type for segment in self._proj.loader.main_object.reader.iter_segments()):
+        elif any("GNU_RELRO" in segment.header.p_type for segment in GlobalConfig.proj.loader.main_object.reader.iter_segments()):
             self.relro = "partial"
             row.append(colored("Partial","yellow"))
 
@@ -53,7 +51,7 @@ class BinInfo:
             row.append(colored("None","red"))
 
         # NX
-        if self._proj.loader.main_object.execstack:
+        if GlobalConfig.proj.loader.main_object.execstack:
             self.nx = False
             row.append(colored("Disabled","red"))
         else:
@@ -61,7 +59,7 @@ class BinInfo:
             row.append(colored("Enabled","green"))
 
         # Canary
-        if self._proj.loader.main_object.get_symbol("__stack_chk_fail"):
+        if GlobalConfig.proj.loader.main_object.get_symbol("__stack_chk_fail"):
             self.canary = True
             row.append(colored("Enabled","green"))
         else:
@@ -69,7 +67,7 @@ class BinInfo:
             row.append(colored("Disabled","red"))
 
         # PIC
-        if self._proj.loader.main_object.pic:
+        if GlobalConfig.proj.loader.main_object.pic:
             self.pic = True
             row.append(colored("Enabled","green"))
         else:
@@ -78,7 +76,7 @@ class BinInfo:
 
         # Fortify
         #if any(self._cfg.functions[func].name.endswith("_chk") for func in self._cfg.functions):
-        if any(sym.demangled_name.endswith("_chk") for sym in self._proj.loader.main_object.symbols_by_addr.values()):
+        if any(sym.demangled_name.endswith("_chk") for sym in GlobalConfig.proj.loader.main_object.symbols_by_addr.values()):
             self.fortify = True
             row.append(colored("Enabled","green"))
         else:
@@ -87,7 +85,7 @@ class BinInfo:
 
         # ASAN
         #if any(self._cfg.functions[func].name.startswith("__asan_") for func in self._cfg.functions):
-        if any(sym.demangled_name.startswith("__asan_") for sym in self._proj.loader.main_object.symbols_by_addr.values()):
+        if any(sym.demangled_name.startswith("__asan_") for sym in GlobalConfig.proj.loader.main_object.symbols_by_addr.values()):
             self.asan = True
             table.add_column("ASAN","")
             row.append(colored("Enabled","yellow"))
@@ -97,7 +95,7 @@ class BinInfo:
 
         # MSAN
         #if any(self._cfg.functions[func].name.startswith("__msan_") for func in self._cfg.functions):
-        if any(sym.demangled_name.startswith("__msan_") for sym in self._proj.loader.main_object.symbols_by_addr.values()):
+        if any(sym.demangled_name.startswith("__msan_") for sym in GlobalConfig.proj.loader.main_object.symbols_by_addr.values()):
             self.msan = True
             table.add_column("MSAN","")
             row.append(colored("Enabled","yellow"))
@@ -107,7 +105,7 @@ class BinInfo:
 
         # UBSAN
         #if any(self._cfg.functions[func].name.startswith("__ubsan_'") for func in self._cfg.functions):
-        if any(sym.demangled_name.startswith("__ubsan_") for sym in self._proj.loader.main_object.symbols_by_addr.values()):
+        if any(sym.demangled_name.startswith("__ubsan_") for sym in GlobalConfig.proj.loader.main_object.symbols_by_addr.values()):
             self.ubsan = True
             table.add_column("UBSAN","")
             row.append(colored("Enabled","yellow"))
@@ -117,7 +115,7 @@ class BinInfo:
 
         # AFL
         #if any(self._cfg.functions[func].name.startswith("__afl_") for func in self._cfg.functions):
-        if any(sym.demangled_name.startswith("__afl_") for sym in self._proj.loader.main_object.symbols_by_addr.values()):
+        if any(sym.demangled_name.startswith("__afl_") for sym in GlobalConfig.proj.loader.main_object.symbols_by_addr.values()):
             self.afl = True
             table.add_column("AFL","")
             row.append(colored("Enabled","yellow"))
@@ -126,9 +124,9 @@ class BinInfo:
             self.afl = False
 
         # UPX
-        offset = self._proj.loader.main_object.binary_stream.tell()
-        self._proj.loader.main_object.binary_stream.seek(0)
-        if "UPX!" in self._proj.loader.main_object.binary_stream.read():
+        offset = GlobalConfig.proj.loader.main_object.binary_stream.tell()
+        GlobalConfig.proj.loader.main_object.binary_stream.seek(0)
+        if "UPX!" in GlobalConfig.proj.loader.main_object.binary_stream.read():
             self.packer = "UPX"
             table.add_column("Packer","")
             row.append(colored("UPX","red"))
@@ -136,11 +134,11 @@ class BinInfo:
         else:
             self.packer = None
         
-        self._proj.loader.main_object.binary_stream.seek(offset)
+        GlobalConfig.proj.loader.main_object.binary_stream.seek(offset)
 
         # Build-id -- Disabling for now... it just takes up space and not sure why i care.
-        #state = self._proj.factory.blank_state()
-        #section = self._proj.loader.main_object.sections_map['.note.gnu.build-id']
+        #state = GlobalConfig.proj.factory.blank_state()
+        #section = GlobalConfig.proj.loader.main_object.sections_map['.note.gnu.build-id']
         #buildID = hex(state.se.any_int(state.memory.load(section.vaddr+16,20)))[2:].rstrip("L")
         #table.add_column("Build","")
         #row.append(buildID)

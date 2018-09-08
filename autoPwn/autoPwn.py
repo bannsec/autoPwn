@@ -14,6 +14,7 @@ import re
 import glob
 import argparse
 import configparser
+from . import Config as GlobalConfig
 from .ui.console import ConsoleUI
 from . import modules
 from . import fuzzers
@@ -253,7 +254,7 @@ def setupUI():
     console.createView("MainMenu")
     console.setActiveView("MainMenu")
     console.registerModule(modules.banner.Banner(),height=20)
-    bininfo = modules.binInfo.BinInfo(proj)
+    bininfo = modules.binInfo.BinInfo()
     console.registerModule(bininfo,height=20)
     console.registerModule(fuzzstats,height=50)
     console.registerModule(main_menu,height=100)
@@ -570,7 +571,7 @@ examples:
 """
 
 def main():
-    global queues, args, proj, cfg, config
+    global queues, args, config
 
     parser = argparse.ArgumentParser(description='Automate some basic fuzzing management', epilog=epilog, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('binary', type=str, nargs=1,
@@ -626,8 +627,7 @@ def main():
 
     # Load up the binary
     print("Loading up the binary")
-    proj = angr.Project(config['target'],load_options={'auto_load_libs': False})
-    #cfg = proj.analyses.CFG()
+    GlobalConfig.proj = angr.Project(config['target'],load_options={'auto_load_libs': False})
 
     setupUI()
 
