@@ -183,6 +183,11 @@ class GlobalConfig(object):
         assert type(arguments) is list, "Unexpected type for arguments of {}".format(type(arguments))
         self.__arguments = arguments
 
+    @property
+    def argv(self):
+        """list: Full argv list. I.e.: ["./calc","arg1","arg2"]"""
+        return [self.target] + self.arguments
+
 
 try:
     global_config
