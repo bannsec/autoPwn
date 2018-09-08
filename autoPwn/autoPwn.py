@@ -14,7 +14,7 @@ import re
 import glob
 import argparse
 import configparser
-from . import Config as GlobalConfig
+from .Config import global_config as GlobalConfig
 from .ui.console import ConsoleUI
 from . import modules
 from . import fuzzers

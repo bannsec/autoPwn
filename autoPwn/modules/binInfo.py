@@ -1,5 +1,5 @@
 
-from .. import Config as GlobalConfig
+from ..Config import global_config as GlobalConfig
 
 class BinInfo:
     """

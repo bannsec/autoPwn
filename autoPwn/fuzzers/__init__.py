@@ -7,7 +7,7 @@ import os
 import pkgutil
 import importlib
 
-from .. import Config as GlobalConfig
+from ..Config import global_config as GlobalConfig
 
 here = os.path.dirname(os.path.abspath(__file__))
 
