@@ -6,7 +6,9 @@ FROM shellphish/mechaphish
 COPY . /home/angr/autoPwn/.
 USER root
 RUN chown -R angr:angr /home/angr/autoPwn && \
-    dpkg -i /home/angr/autoPwn/gdb*.deb || apt-get install -fy && dpkg -i /home/angr/autoPwn/gdb*.deb
+    apt-get remove -y gdb*  && apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git  libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils && \
+    mkdir -p /opt && cd /opt && git clone --depth 1 git://sourceware.org/git/binutils-gdb.git && cd binutils-gdb && \
+    ./configure --with-python=python2.7 && make -j`nproc` && make install
 
 USER angr
 RUN . /home/angr/.virtualenvs/angr/bin/activate && \
