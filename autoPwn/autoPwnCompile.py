@@ -1,4 +1,6 @@
 import argparse
+
+from .Config import global_config as GlobalConfig
 from . import fuzzers
 import os
 
@@ -30,7 +32,16 @@ def main():
                         help = "Enable UBSAN (default off)")
     parser.add_argument('--fuzzer', default='AFL', type=str,
                         help='(optional) What fuzzer to compile for. Options are: {}. Default is AFL.'.format(fuzzers.fuzzers.keys()))
+
+    lib_fuzz = parser.add_argument_group('LibFuzz Options')
+    lib_fuzz.add_argument("--no-fuzzer", action='store_true', default=False,
+                        help='Don\'t actually link the fuzzer into the binary, just compile with any of the optional sanitizers listed above.')
+    lib_fuzz.add_argument('--fuzzer-no-link', action='store_true', default=False,
+                        help='Don\'t link LibFuzz into the binaries. Helpful when building a large project that you only want to fuzz a part of. With this arg, you also don\'t have to worry about replacing main in those binaries as main won\'t be linked. Use this flag for building a large project, then individually compile those pieces you want to fuzz with the linker enabled.')
+
+
     args = parser.parse_args()
+    GlobalConfig.args = args
 
     if args.file is not None:
         compile_file(file_name=args.file, fuzzer=args.fuzzer, ASAN=args.ASAN, MSAN=args.MSAN, UBSAN=args.UBSAN)

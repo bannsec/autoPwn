@@ -30,7 +30,7 @@ setup(
     extras_require={
         'dev': ['six','ipython','twine','pytest','python-coveralls','coverage','pytest-cov','pytest-xdist','sphinxcontrib-napoleon', 'sphinx_rtd_theme','sphinx-autodoc-typehints'],
     },
-    install_requires=["prettytable","termcolor"],
+    install_requires=["prettytable","termcolor","python-magic"],
     keywords='pwn exploitation',
     packages=find_packages(exclude=['contrib', 'docs', 'tests','lib','examples']),
     entry_points={
