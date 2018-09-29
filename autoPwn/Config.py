@@ -188,6 +188,10 @@ class GlobalConfig(object):
         """list: Full argv list. I.e.: ["./calc","arg1","arg2"]"""
         return [self.target] + self.arguments
 
+    @property
+    def cores(self):
+        """int: Number of cores to use when fuzzing. Defaults to the total number of cores available."""
+        return multiprocessing.cpu_count()
 
 try:
     global_config
