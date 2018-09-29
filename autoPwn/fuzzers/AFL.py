@@ -4,6 +4,7 @@ logger = logging.getLogger("autoPwn.fuzzers.AFL")
 import os
 import subprocess
 import shlex
+from prettytable import PrettyTable
 from . import *
 from ..Config import global_config as GlobalConfig
 
@@ -45,7 +46,30 @@ class AFL(Fuzzer):
         return self.fuzzer.alive
 
     def stats(self):
-        return self.fuzzer.stats
+        """str: Return string representing stats of AFL fuzzing."""
+        # afl_version
+
+        table = PrettyTable([" ","bitmap","cycles","execs","pfavs","tfavs","crash","hang"])
+        table.border = False # Border only takes up space!
+
+        fuzzer_stats = self.fuzzer.stats
+        
+        # Each fuzzer instance is a row
+        for fuzzerName in sorted(fuzzer_stats):
+            fuzzerInstance = fuzzer_stats[fuzzerName]
+            
+            table.add_row([
+                fuzzerName,
+                fuzzerInstance['bitmap_cvg'],
+                fuzzerInstance['cycles_done'],
+                fuzzerInstance['execs_done'],
+                fuzzerInstance['pending_favs'],
+                fuzzerInstance['paths_favored'],
+                fuzzerInstance['unique_crashes'],
+                fuzzerInstance['unique_hangs'],
+            ])
+        
+        return str(table)
 
     def start(self):
         """Start the fuzzer."""

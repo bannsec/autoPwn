@@ -38,16 +38,6 @@ class FuzzerStats:
         
         return GlobalConfig.queues[self._me].get()
 
-    def _fuzzer_stats(self):
-        fuzzer = GlobalConfig.queues['fuzzer']
-        
-        fuzzer.put({
-            'command': 'stats',
-            'replyto': self._me
-        })
-        
-        return GlobalConfig.queues[self._me].get()
-
     def draw(self,height,width):
 
         # TODO: Check for console size before returning stuff
@@ -71,30 +61,13 @@ class FuzzerStats:
             return
         
         # Fuzzer is alive, print out stats
+        fuzzer = GlobalConfig.queues['fuzzer']
         
-        # afl_version
-
-        table = PrettyTable([" ","bitmap","cycles","execs","pfavs","tfavs","crash","hang"])
-        table.border = False # Border only takes up space!
-
-        fuzzer_stats = self._fuzzer_stats()
+        fuzzer.put({
+            'command': 'stats',
+            'replyto': self._me
+        })
         
-        # Each fuzzer instance is a row
-        for fuzzerName in sorted(fuzzer_stats):
-            fuzzerInstance = fuzzer_stats[fuzzerName]
-            
-            table.add_row([
-                fuzzerName,
-                fuzzerInstance['bitmap_cvg'],
-                fuzzerInstance['cycles_done'],
-                fuzzerInstance['execs_done'],
-                fuzzerInstance['pending_favs'],
-                fuzzerInstance['paths_favored'],
-                fuzzerInstance['unique_crashes'],
-                fuzzerInstance['unique_hangs'],
-            ])
+        self._s = GlobalConfig.queues[self._me].get()
         
-        self._s = str(table)
-        
-from prettytable import PrettyTable
 from termcolor import colored
