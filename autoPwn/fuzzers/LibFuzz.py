@@ -4,10 +4,13 @@ logger = logging.getLogger("autoPwn.fuzzers.LibFuzz")
 
 import os
 import subprocess
+import signal
 import shlex
+from copy import copy
 import magic
 from . import *
 from ..Config import global_config as GlobalConfig
+from ..helpers import read_all_lines, recursive_kill
 
 # Just to be sure...
 try:
@@ -18,7 +21,14 @@ except:
 class LibFuzz(Fuzzer):
 
     def __init__(self, bininfo):
-        pass
+        self._alive = False
+        self.fuzzer = None
+        self._stats = ""
+
+        # Create dir if need be
+        if not os.path.exists(self.seeds_dir):
+            os.makedirs(self.seeds_dir)
+
 
     #########
     # Calls #
@@ -35,12 +45,16 @@ class LibFuzz(Fuzzer):
         # This warning only relevant when linking with the fuzzer
         if not GlobalConfig.args.no_fuzzer and not GlobalConfig.args.fuzzer_no_link:
 
-            # C? C++?
-            file_magic = magic.from_file(full_path)
-            if "C++ source" in file_magic:
-                func = """extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) { <test here>; return 0 }"""
+            if os.path.isfile(source):
+                # C? C++?
+                file_magic = magic.from_file(full_path)
+                if "C++ source" in file_magic:
+                    func = """extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) { <test here>; return 0 }"""
+                else:
+                    func = """int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) { <test here>; return 0 }"""
+
             else:
-                func = """int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) { <test here>; return 0 }"""
+                func = """extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) { <test here>; return 0 }"""
 
             logger.warn("""Remember! You need to add the LibFuzz test function: 
 
@@ -121,24 +135,38 @@ class LibFuzz(Fuzzer):
         subprocess.call(command, env=env, shell=True)
 
 
-    """
     def alive(self):
-        " ""bool: Is the fuzzer alive and running?"" "
-        return self.fuzzer.alive
+        """bool: Is the fuzzer alive and running?"""
+        if self.fuzzer is None:
+            return False
+
+        # s.poll()  -- Returns None if process is alive, otherwise returns exit code
+        alive = self.fuzzer.poll() is None
+
+        # Save off any last error messages
+        if not alive:
+            self._append_to_log(self.fuzzer.stderr.read())
+            self.fuzzer = None
+
+        return alive
 
     def stats(self):
-        return self.fuzzer.stats
+        new_stats = "\n".join(read_all_lines(self.fuzzer.stderr))
+        self._stats += new_stats
+        self._append_to_log(new_stats)
+        return self._stats
 
     def start(self):
-        " ""Start the fuzzer." ""
-        self.fuzzer.start()
+        """Start the fuzzer."""
+        self.fuzzer = subprocess.Popen(self._run_args, env=self._run_env, bufsize=10240, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=GlobalConfig.work_dir)
 
     def kill(self):
-        " ""Kill the fuzzer." ""
-        if self.fuzzer.alive:
-            self.fuzzer.kill()
+        """Kill the fuzzer."""
+        if self.alive:
+            recursive_kill(self.fuzzer.pid)
             self.fuzzer = None # Do i need to kill it like this?
 
+    """
     def get_paths(self):
         return self.fuzzer.queue()
 
@@ -163,64 +191,65 @@ class LibFuzz(Fuzzer):
         # If we're not alive, just set the variable
         else:
             self.fuzzer.dictionary = dictionary
+    """
 
     def quit(self):
         self.kill()
         exit(0)
 
-    @staticmethod
-    def compile_make(command, ASAN, MSAN, UBSAN):
-        env = copy(os.environ)
-        env['AFL_HARDEN'] = '1' # TODO: Make this an option?
-        env['CC'] = os.path.join(AFL_ROOT, "afl-clang")
-        env['CXX'] = os.path.join(AFL_ROOT, "afl-clang++")
-        env['CFLAGS'] = "-fno-omit-frame-pointer -O2 -g"
-        env['CXXFLAGS'] = "-fno-omit-frame-pointer -O2 -g"
-
-        # These are exclusive
-        if ASAN:
-            env['AFL_USE_ASAN'] = "1"
-        elif MSAN:
-            env['AFL_USE_MSAN'] = "1"
-
-        subprocess.call(command, env=env, shell=True)
+    def _append_to_log(self, s):
+        with open(self.logfile, "a") as f:
+            f.write(s)
 
     ##############
     # Properties #
     ##############
 
     @property
+    def logfile(self):
+        """str: Path to log output of run."""
+        return os.path.join(GlobalConfig.work_dir, "libfuzz.log")
+
+    @property
+    def _run_env(self):
+        """dict: Environment dictionary to run with."""
+        env = copy(os.environ)
+
+        if GlobalConfig.args.disable_odr_violations:
+            env['ASAN_OPTIONS'] = 'detect_odr_violation=0'
+
+        return env
+
+    @property
+    def seeds_dir(self):
+        """str: Path to directory that will house the seeds."""
+        return os.path.join(GlobalConfig.work_dir, "seeds")
+
+    @property
+    def _run_args(self):
+        """dict: Run arguments to be passed to subprocess.Popen."""
+        # -jobs=8 -workers=8 -reduce_inputs=1 -use_counters=1 -print_final_stats=1 -close_fd_mask=3 -detect_leaks=1 -max_len 4096 rax2_inputs/
+        return [GlobalConfig.target, "-print_pcs=1", "-seed=1", "-use_value_profile=1", "-reload=1", "-jobs=8","-workers=8","-reduce_inputs=1","-use_counters=1","-print_final_stats=1","-close_fd_mask=3","-detect_leaks=1","-max_len=4096", self.seeds_dir]
+
+    @property
     def fuzzer(self):
-        " ""The fuzzer instance. Automatically created if it was set to None." ""
-
-        if self.__fuzzer is None:
-            self.__fuzzer = fuzzer.Fuzzer(self.target, self.work_dir, afl_count=self.threads, qemu=self.qemu, target_opts=self.target_args, memory="none")
-            self.__fuzzer.dictionary = self.dictionary
-
+        """Subprocess.Popen: Current handle to the running fuzzer subprocess."""
         return self.__fuzzer
 
     @fuzzer.setter
     def fuzzer(self, fuzzer):
+        assert isinstance(fuzzer, (subprocess.Popen, type(None)))
         self.__fuzzer = fuzzer
 
     @property
     def status(self):
-        " ""int: Return the status of the fuzzer." ""
+        """int: Return the status of the fuzzer."""
         raise Exception("Not implemented.")
 
     @property
-    def qemu(self):
-        " ""bool: To use QEMU mode for AFL fuzzing." ""
-        return self.__qemu
-
-    @qemu.setter
-    def qemu(self, qemu):
-        assert type(qemu) is bool, "Invalid type for qemu of '{}'".format(type(qemu))
-        self.__qemu = qemu
-
-    @property
     def dictionary(self):
-        " ""str: Full path to dictionary for AFL to use." ""
+        """str: Full path to dictionary for AFL to use."""
+        logger.warn("Dictionary not implemented yet.")
         return self.__dictionary
 
     @dictionary.setter
@@ -232,4 +261,3 @@ class LibFuzz(Fuzzer):
 
         else:
             self.__dictionary = dictionary
-    """

@@ -36,6 +36,9 @@ class AFL(Fuzzer):
         self.qemu = not bininfo.afl
         self.dictionary = None
 
+        if GlobalConfig.args.disable_odr_violations:
+            os.environ['ASAN_OPTIONS'] = 'abort_on_error=1:symbolize=0:detect_odr_violation=0'
+
     #########
     # Calls #
     #########

@@ -251,8 +251,6 @@ def doStart():
     signal.signal(signal.SIGALRM, checkFuzzerStatus)
     signal.alarm(CHECK_INTERVAL)
     
-
-     
 def doExit():
     # Tell our procs to exit
     GlobalConfig.queues['fuzzer'].put({
@@ -467,6 +465,11 @@ def main():
                         help='Specify size in MB for the RAM mount. Default: 512')
     parser.add_argument('--fuzzer', default='AFL', type=str,
                         help='(optional) What fuzzer to start with. Options are: {}. Default is AFL.'.format(fuzzers.fuzzers.keys()))
+
+    asan_options = parser.add_argument_group('ASAN Options')
+    asan_options.add_argument('--disable-odr-violations', default=False, action='store_true',
+                        help='Sometimes the fuzzer won\'t start due to odr violations. You can disable that check with this flag.')
+
     #parser.add_argument('--no-auto-min', dest='no_auto_min', action='store_true',
     #                    help='Remove auto-prune functionality. It can still be done on-demand')
     #parser.set_defaults(no_auto_min=True)
@@ -482,6 +485,9 @@ def main():
 
     else:
         config = readConfig(args.config_file)
+
+    # Save it to the global config
+    GlobalConfig.args = args
 
     # Setup some queues
     GlobalConfig.queues = {

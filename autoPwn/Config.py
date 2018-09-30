@@ -193,6 +193,21 @@ class GlobalConfig(object):
         """int: Number of cores to use when fuzzing. Defaults to the total number of cores available."""
         return multiprocessing.cpu_count()
 
+    @property
+    def work_dir(self):
+        """str: Path to working directory for this fuzz run."""
+        return self.__work_dir
+
+    @work_dir.setter
+    def work_dir(self, work_dir):
+        if not os.path.exists(work_dir):
+            os.makedirs(work_dir)
+        elif not os.path.isdir(work_dir):
+            logger.error("Work dir '{}' exists but is not a directory?".format(work_dir))
+            exit(1)
+
+        self.__work_dir = work_dir
+
 try:
     global_config
 except:
