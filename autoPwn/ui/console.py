@@ -1,4 +1,9 @@
 
+try:
+    input = raw_input
+except:
+    pass
+
 class ConsoleUI:
     
     def __init__(self):
@@ -148,7 +153,7 @@ class ConsoleUI:
         Use setPrompt to set a custom prompt
         """
         # For now, just do this
-        return raw_input()
+        return input()
 
 def cls():
     os.system('cls' if os.name=='nt' else 'clear')

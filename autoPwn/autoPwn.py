@@ -348,6 +348,7 @@ def watcher():
         fuzzer_stats = GlobalConfig.queues[me].get()
 
         # If we have no more pending favs, we should move on.
+        # TODO: Make fuzzer_stats_dict call to get this back as dict instead of str
         pending_favs = sum(int(fuzzer_stats[x]['pending_favs']) for x in fuzzer_stats)
 
         # It's time to drill for some more

@@ -126,7 +126,7 @@ class BinInfo:
         # UPX
         offset = GlobalConfig.proj.loader.main_object.binary_stream.tell()
         GlobalConfig.proj.loader.main_object.binary_stream.seek(0)
-        if "UPX!" in GlobalConfig.proj.loader.main_object.binary_stream.read():
+        if b"UPX!" in GlobalConfig.proj.loader.main_object.binary_stream.read():
             self.packer = "UPX"
             table.add_column("Packer","")
             row.append(colored("UPX","red"))
