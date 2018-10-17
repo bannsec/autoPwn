@@ -13,7 +13,7 @@ class ConsoleUI:
 
     def _setConsoleDimensions(self):
 
-        term_size = get_terminal_size()
+        term_size = shutil.get_terminal_size()
 
         # Grab current console dimensions
         self._height = term_size[1]
@@ -161,7 +161,6 @@ import logging
 import sys
 import os
 import re
-from terminalsize import get_terminal_size
 
 log = logging.getLogger("ConsoleUI")
 

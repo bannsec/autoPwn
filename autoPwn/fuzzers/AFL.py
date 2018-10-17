@@ -9,7 +9,7 @@ from . import *
 from ..Config import global_config as GlobalConfig
 
 try:
-    import tracer, angr, simuvex, fuzzer
+    import tracer, angr, fuzzer
 except:
     logger.error("Unable to find required angr/mechaphish libraries. Make sure mechaphish is installed.")
     exit(1)
