@@ -12,7 +12,7 @@ RUN chown -R angr:angr /home/angr/autoPwn && \
     cd /opt && git clone https://gitlab.com/akihe/radamsa.git && cd radamsa && make -j`nproc` && make install
 
 USER angr
-RUN virtualenv --python=$(which python2) /home/angr/.virtualenvs/patchkit &&  . /home/angr/.virtualenvs/patchkit/bin/activate && pip install -U setuptools && pip install capstone keystone-engine && ln -s /home/angr/.virtualenvs/angr/lib/python2.7/site-packages/keystone/libkeystone.so /home/angr/.virtualenvs/patchkit/lib/python2.7/site-packages/keystone/ && \
+RUN virtualenv --python=$(which python2) /home/angr/.virtualenvs/patchkit && . /home/angr/.virtualenvs/patchkit/bin/activate && pip install -U setuptools && pip install capstone keystone-engine && find ~/.virtualenvs/angr -name "libkeystone.so" -exec ln -s {} /home/angr/.virtualenvs/patchkit/lib/python2.7/site-packages/keystone/libkeystone.so \; && \
     . /home/angr/.virtualenvs/angr/bin/activate && \
     pip install -U pip setuptools && \
     cd /home/angr/autoPwn/ && pip install -e . && \
