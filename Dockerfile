@@ -21,7 +21,6 @@ RUN virtualenv --python=$(which python2) /home/angr/.virtualenvs/patchkit && . /
     cp /home/angr/autoPwn/gdbinit /home/angr/.gdbinit && \
     pip install angrgdb bintrees && \
     cd /home/angr && git clone --depth 1 --single-branch --branch docker-with-pie https://github.com/bannsec/patchkit.git && \
-    mkdir -p ~/opt && cd ~/opt && wget http://lcamtuf.coredump.cx/afl/releases/afl-latest.tgz && tar xf afl-latest.tgz && rm afl-latest.tgz && cd afl*/libdislocator && CC="gcc -m32" make && mv libdislocator.so libdislocator32.so && make && mv libdislocator.so libdislocator64.so && echo alias DISLOCATOR32="LD_PRELOAD=$PWD/libdislocator32.so" >> ~/.bashrc && echo alias DISLOCATOR64="LD_PRELOAD=$PWD/libdislocator64.so" >> ~/.bashrc && \
-    echo "PATH=/home/angr/patchkit:\$PATH" >> ~/.bashrc
+    mkdir -p ~/opt && cd ~/opt && wget http://lcamtuf.coredump.cx/afl/releases/afl-latest.tgz && tar xf afl-latest.tgz && rm afl-latest.tgz && cd afl*/libdislocator && CC="gcc -m32" make && mv libdislocator.so libdislocator32.so && make && mv libdislocator.so libdislocator64.so && echo alias DISLOCATOR32="LD_PRELOAD=$PWD/libdislocator32.so" >> ~/.bashrc && echo alias DISLOCATOR64="LD_PRELOAD=$PWD/libdislocator64.so" >> ~/.bashrc
 
 RUN ["/bin/bash"]
