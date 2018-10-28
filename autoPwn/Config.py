@@ -42,7 +42,7 @@ class GlobalConfig(object):
             os.environ['AUTOPWN_ARGV'] = ",".join(str(i) for i in args.fuzzed_argument)
             os.environ['AUTOPWN_ARGV_SIZE'] = ",".join([str(AUTOPWN_ARGV_SIZE)] * len(args.fuzzed_argument)) # TODO: Maybe this should be an optional variable?
 
-            subprocess.check_output(['patch', target, os.path.join(HERE, "patches", "argv_{}.py".format(arch.lower()))], env=os.environ)
+            subprocess.check_output(['/home/angr/.virtualenvs/patchkit/bin/python', '/home/angr/patchkit/patch', target, os.path.join(HERE, "patches", "argv_{}.py".format(arch.lower()))], env=os.environ)
 
             # Overwrite the calling args
             args.binary[0] = target + ".patched"
