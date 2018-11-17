@@ -201,7 +201,7 @@ def doOptionsMenu():
 def doSetDictionary():
     """Handle setting the fuzzer dictionary"""
 
-    dictionary = raw_input("Directory or file to use as AFL dictionary: ")
+    dictionary = input("Directory or file to use as AFL dictionary: ")
 
     # Request the fuzzer to pollinate for us
     GlobalConfig.queues['fuzzer'].put({
@@ -216,7 +216,7 @@ def doPollinate():
 
     seeds = []
 
-    pDir = raw_input("Directory with seeds to pollinate: ")
+    pDir = input("Directory with seeds to pollinate: ")
 
     # Choosing to allow variables and expansions to make it easier to use
     pDir = os.path.expanduser(os.path.expandvars(pDir))
