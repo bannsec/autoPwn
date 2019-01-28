@@ -6,7 +6,7 @@ FROM shellphish/mechaphish
 COPY . /home/angr/autoPwn/.
 USER root
 RUN chown -R angr:angr /home/angr/autoPwn && \
-    apt-get remove -y gdb*  && apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git  libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils gdb-multiarch g++-multilib libc6-dev-i386 && \
+    apt-get remove -y gdb*  && apt-get update -y && apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git  libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils gdb-multiarch g++-multilib libc6-dev-i386 && \
     mkdir -p /opt && cd /opt && git clone --depth 1 git://sourceware.org/git/binutils-gdb.git && cd binutils-gdb && \
     ./configure --with-python=python3 && make -j`nproc` && make install && \
     cd /opt && git clone https://gitlab.com/akihe/radamsa.git && cd radamsa && make -j`nproc` && make install
