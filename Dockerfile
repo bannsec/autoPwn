@@ -1,4 +1,5 @@
-FROM shellphish/mechaphish
+FROM bannsec/mechaphish
+#FROM shellphish/mechaphish
 
 # --chown wasn't implemented until Docker 17.09. Dockerhub is still on 17.06.
 # Change this back once Dockerhub catches up...
