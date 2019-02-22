@@ -6,7 +6,7 @@ function apt_update () {
     # Removing GDB here to compile it later..
     apt-get remove -y gdb*
     apt-get update -y
-    apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils gdb-multiarch g++-multilib libc6-dev-i386
+    apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils g++-multilib libc6-dev-i386 valabind valac swig graphviz xdot net-tools htop
 }
 
 function build_install_gdb () {
@@ -19,6 +19,8 @@ function build_install_gdb () {
     ./configure --with-python=python3
     make -j`nproc`
     make install
+    cd /opt
+    rm -rf binutils-gdb
 }
 
 function install_radamsa () {
@@ -72,9 +74,10 @@ function install_r2 () {
         cd radare2;
         ./sys/user.sh;
         echo \"export PATH=\\\$PATH:\\\$HOME/bin\" >> ~/.bashrc;
-		r2pm init;
-		r2pm install lang-python2 lang-python3;
-		sudo \$(which r2pm) install r2api-python;
+        export PATH=\$PATH:\$HOME/bin;
+        r2pm init;
+        r2pm install lang-python2 lang-python3;
+        sudo \$(which r2pm) install r2api-python;
     " angr
 }
 
