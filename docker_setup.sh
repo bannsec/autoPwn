@@ -81,7 +81,7 @@ function install_r2 () {
     " angr
 }
 
-function install_afl () {
+function install_libdislocator () {
 
     su -c "
         cd ~/opt;
@@ -98,6 +98,29 @@ function install_afl () {
     " angr
 }
 
+function update_shellphish_afl () {
+    # TODO :Remove this once pypi version of shellphish-afl is on 2.52b
+
+    su -c "
+        cd ~/opt;
+        wget -O shellphish_afl-1.2.1-py3-none-any.whl \"https://github.com/bannsec/autoPwn-tmp/blob/master/shellphish_afl-1.2.1-py3-none-any.whl?raw=true\";
+        . /home/angr/.virtualenvs/angr/bin/activate;
+        pip install -U shellphish_afl-1.2.1-py3-none-any.whl;
+    " angr
+    
+
+    # Deciding not to compile since it takes too long
+    : '
+    su -c "
+        cd ~/opt;
+        git clone --depth=1 https://github.com/shellphish/shellphish-afl.git;
+        cd shellphish-afl;
+        . /home/angr/.virtualenvs/angr/bin/activate;
+        pip install -Ue .;
+    " angr '
+
+}
+
 #
 #
 #
@@ -108,4 +131,5 @@ install_radamsa
 setup_patchkit
 install_autopwn
 install_r2
-install_afl
+install_libdislocator
+update_shellphish_afl
