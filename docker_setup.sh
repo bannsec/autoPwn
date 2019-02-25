@@ -126,8 +126,11 @@ function update_shellphish_afl () {
 #
 
 apt_update
+
+# These are in separate build stages now
 #build_install_gdb
-install_radamsa
+#install_radamsa
+
 setup_patchkit
 install_autopwn
 install_r2
