@@ -126,7 +126,7 @@ function update_shellphish_afl () {
 #
 
 apt_update
-build_install_gdb
+#build_install_gdb
 install_radamsa
 setup_patchkit
 install_autopwn
