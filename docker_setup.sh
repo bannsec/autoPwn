@@ -66,8 +66,8 @@ function install_autopwn () {
 function install_r2 () {
 
     su -c "
+        pip3 install r2pipe;
         . /home/angr/.virtualenvs/angr/bin/activate;
-        pip install r2pipe;
         mkdir -p ~/opt;
         cd /home/angr/opt;
         git clone --depth 1 https://github.com/radare/radare2.git;
@@ -76,7 +76,7 @@ function install_r2 () {
         echo \"export PATH=\\\$PATH:\\\$HOME/bin\" >> ~/.bashrc;
         export PATH=\$PATH:\$HOME/bin;
         r2pm init;
-        r2pm install lang-python2 lang-python3;
+        r2pm install lang-python3;
         sudo \$(which r2pm) install r2api-python;
     " angr
 }
