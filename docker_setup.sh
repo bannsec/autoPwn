@@ -6,7 +6,9 @@ function apt_update () {
     # Removing GDB here to compile it later..
     apt-get remove -y gdb*
     apt-get update -y
-    apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils g++-multilib libc6-dev-i386 valabind valac swig graphviz xdot net-tools htop
+    apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils g++-multilib libc6-dev-i386 valabind valac swig graphviz xdot net-tools htop netcat ltrace
+
+    echo "alias ltrace='ltrace -C -f -n 5 -s 512 -S -i'" >> /home/angr/.bashrc
 }
 
 function build_install_gdb () {
@@ -66,7 +68,7 @@ function install_autopwn () {
 function install_r2 () {
 
     su -c "
-        pip3 install r2pipe;
+        pip3 install --user r2pipe;
         . /home/angr/.virtualenvs/angr/bin/activate;
         mkdir -p ~/opt;
         cd /home/angr/opt;
@@ -78,6 +80,7 @@ function install_r2 () {
         r2pm init;
         r2pm install lang-python3;
         sudo \$(which r2pm) install r2api-python;
+        pip3 install r2pipe;
     " angr
 }
 
@@ -107,18 +110,22 @@ function update_shellphish_afl () {
         . /home/angr/.virtualenvs/angr/bin/activate;
         pip install -U shellphish_afl-1.2.1-py3-none-any.whl;
     " angr
-    
+}
 
-    # Deciding not to compile since it takes too long
-    : '
+function install_seccomp_filter () {
+    apt-get install -y gcc ruby-dev
+    gem install seccomp-tools
+
+    # Yeah, installing one_gadget at the same time
+    gem install one_gadget
+}
+
+function install_py3pwntools () {
+
     su -c "
-        cd ~/opt;
-        git clone --depth=1 https://github.com/shellphish/shellphish-afl.git;
-        cd shellphish-afl;
         . /home/angr/.virtualenvs/angr/bin/activate;
-        pip install -Ue .;
-    " angr '
-
+        pip install https://github.com/Gallopsled/pwntools/archive/dev3.zip
+    " angr
 }
 
 #
@@ -136,3 +143,5 @@ install_autopwn
 install_r2
 install_libdislocator
 update_shellphish_afl
+install_seccomp_filter
+install_py3pwntools
