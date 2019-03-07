@@ -128,6 +128,15 @@ function install_py3pwntools () {
     " angr
 }
 
+function install_ghidra () {
+    
+    su -c "
+        cd /opt/ghidra* && echo export PATH=\$PATH:$PWD:$PWD/server:$PWD/support >> /home/angr/.bashrc && \
+        cd /opt/jdk*/bin && echo export PATH=\$PATH:$PWD >> /home/angr/.bashrc
+    " angr
+
+}
+
 #
 #
 #
@@ -145,3 +154,4 @@ install_libdislocator
 update_shellphish_afl
 install_seccomp_filter
 install_py3pwntools
+install_ghidra
