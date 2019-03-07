@@ -155,3 +155,6 @@ update_shellphish_afl
 install_seccomp_filter
 install_py3pwntools
 install_ghidra
+
+# Make sure this is the last thing we do in bashrc
+echo workon angr >> /home/angr/.bashrc
