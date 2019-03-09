@@ -137,6 +137,16 @@ function install_ghidra () {
 
 }
 
+function fixup_ipython () {
+    # Move ipython into virtualenvs instead of outside
+
+    su -c "
+        pip uninstall -y ipython;
+        . /home/angr/.virtualenvs/angr/bin/activate;
+        pip install ipython
+    " angr
+}
+
 #
 #
 #
@@ -155,6 +165,7 @@ update_shellphish_afl
 install_seccomp_filter
 install_py3pwntools
 install_ghidra
+fixup_ipython
 
 # Make sure this is the last thing we do in bashrc
 echo workon angr >> /home/angr/.bashrc
