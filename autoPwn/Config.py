@@ -67,6 +67,7 @@ class GlobalConfig(object):
         self.work_dir = os.path.abspath("work")
         self.memory = "8G"
         self.arguments = args.argument
+        self.seeds_directory = args.seeds
 
 
     def writeConfig(self, config):
@@ -207,6 +208,45 @@ class GlobalConfig(object):
             exit(1)
 
         self.__work_dir = work_dir
+
+    @property
+    def seeds_directory(self):
+        """str: Directory to pull seeds from or None."""
+        return self.__seeds_directory
+
+    @seeds_directory.setter
+    def seeds_directory(self, seeds):
+        if type(seeds) not in [str, type(None)]:
+            logger.error('Unexpected type for seeds directory of: ' + type(seeds))
+            exit(1)
+
+        if seeds is not None:
+            seeds = os.path.abspath(seeds)
+            assert os.path.isdir(seeds), "Seeds directory is not a directory or doesn't exist."
+
+        self.__seeds_directory = seeds
+
+    @property
+    def seeds(self):
+        """list: Returns a list of seeds to use to start fuzzing."""
+
+        if self.seeds_directory is None:
+            return [b'FUZZ']
+
+        _,_,files = next(os.walk(self.seeds_directory))
+
+        seeds = []
+
+        for f in files:
+            with open(os.path.join(self.seeds_directory, f), 'rb') as f:
+                seeds.append(f.read())
+
+        if seeds == []:
+            logger.error("Didn't find any seeds in the seed directory!")
+            exit(1)
+
+        return seeds
+
 
 try:
     global_config

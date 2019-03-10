@@ -466,6 +466,8 @@ def main():
                         help='Specify size in MB for the RAM mount. Default: 512')
     parser.add_argument('--fuzzer', default='AFL', type=str,
                         help='(optional) What fuzzer to start with. Options are: {}. Default is AFL.'.format(fuzzers.fuzzers.keys()))
+    parser.add_argument('--seeds', default=None, type=str,
+                        help='(optional) Directory that contains files to use as initial seeds.')
 
     asan_options = parser.add_argument_group('ASAN Options')
     asan_options.add_argument('--disable-odr-violations', default=False, action='store_true',

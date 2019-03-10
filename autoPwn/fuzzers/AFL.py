@@ -31,6 +31,7 @@ class AFL(Fuzzer):
         self.target_args = GlobalConfig.arguments
         self.work_dir = GlobalConfig.work_dir
         self.threads = GlobalConfig.threads
+        self.seeds = GlobalConfig.seeds
 
         # Use QEMU or not?
         self.qemu = not bininfo.afl
@@ -181,7 +182,7 @@ class AFL(Fuzzer):
         """The fuzzer instance. Automatically created if it was set to None."""
 
         if self.__fuzzer is None:
-            self.__fuzzer = fuzzer.Fuzzer(self.target, self.work_dir, afl_count=self.threads, qemu=self.qemu, target_opts=self.target_args, memory="none")
+            self.__fuzzer = fuzzer.Fuzzer(self.target, self.work_dir, afl_count=self.threads, qemu=self.qemu, target_opts=self.target_args, memory="none", seeds=self.seeds)
             self.__fuzzer.dictionary = self.dictionary
 
         return self.__fuzzer
