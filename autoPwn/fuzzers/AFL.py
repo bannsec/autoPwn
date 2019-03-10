@@ -5,11 +5,17 @@ import os
 import subprocess
 import shlex
 from prettytable import PrettyTable
+from glob import glob
+import hashlib
+import watchdog, watchdog.observers
+import atexit
+from time import sleep
+
 from . import *
 from ..Config import global_config as GlobalConfig
 
 try:
-    import tracer, angr, fuzzer
+    import tracer, angr, fuzzer, shellphish_afl
 except:
     logger.error("Unable to find required angr/mechaphish libraries. Make sure mechaphish is installed.")
     exit(1)
@@ -20,7 +26,7 @@ try:
 except:
     pass
 
-AFL_ROOT = "/home/angr/.virtualenvs/angr/bin/afl-unix/"
+AFL_ROOT = shellphish_afl.afl_dir('unix')
 
 class AFL(Fuzzer):
 
@@ -39,6 +45,10 @@ class AFL(Fuzzer):
 
         if GlobalConfig.args.disable_odr_violations:
             os.environ['ASAN_OPTIONS'] = 'abort_on_error=1:symbolize=0:detect_odr_violation=0'
+
+        self.realtime_collect_dir = os.path.join(self.work_dir, 'collect')
+
+        self._setup_watchdog()
 
     #########
     # Calls #
@@ -79,6 +89,7 @@ class AFL(Fuzzer):
         """Start the fuzzer."""
         self.fuzzer.start()
 
+
     def kill(self):
         """Kill the fuzzer."""
         if self.fuzzer.alive:
@@ -113,6 +124,43 @@ class AFL(Fuzzer):
     def quit(self):
         self.kill()
         exit(0)
+
+    """
+    def collect_crashes(self):
+        " ""Combines all crashes into single directory." ""
+
+        crashes_dir = os.path.abspath(os.path.join(self.fuzzer.out_dir, "..", "crashes"))
+
+        for f in glob(os.path.join(self.fuzzer.out_dir, "*", "crashes", "*")):
+            if os.path.basename(f) == "README.txt":
+                pass
+    """
+
+    def _setup_watchdog(self):
+        """Setup watcher for new crashes and paths."""
+
+        self._watchdog_observer = watchdog.observers.Observer()
+        self._watchdog_handler = WatchdogHandler(self, self._watchdog_observer)
+
+        os.makedirs(self.fuzzer.out_dir, exist_ok=True)
+
+        # If this is an initial run, hook into the base directory
+        if glob(os.path.join(self.fuzzer.out_dir, "*", "crashes")) == []:
+            self._watchdog_observer.schedule(self._watchdog_handler, os.path.abspath(self.fuzzer.out_dir), recursive=False)
+        
+        # Otherwise, hook the output folders right away
+        else:
+
+            # Limiting watchdog to specific folders to avoid thrashing
+            for path in glob(os.path.join(self.fuzzer.out_dir, "*", "crashes")):
+                self._watchdog_observer.schedule(self._watchdog_handler, path, recursive=False)
+
+            for path in glob(os.path.join(self.fuzzer.out_dir, "*", "queue")):
+                self._watchdog_observer.schedule(self._watchdog_handler, path, recursive=False)
+
+        self._watchdog_observer.start()
+        atexit.register(self._watchdog_observer.stop)
+
 
     @staticmethod
     def compile_file(source, ASAN, MSAN, UBSAN):
@@ -173,6 +221,7 @@ class AFL(Fuzzer):
 
         subprocess.call(command, env=env, shell=True)
 
+
     ##############
     # Properties #
     ##############
@@ -220,3 +269,66 @@ class AFL(Fuzzer):
 
         else:
             self.__dictionary = dictionary
+
+    @property
+    def realtime_collect_dir(self):
+        return self.__realtime_collect_dir
+
+    @realtime_collect_dir.setter
+    def realtime_collect_dir(self, realtime_collect_dir):
+        os.makedirs(os.path.join(realtime_collect_dir, "crashes"), exist_ok=True)
+        os.makedirs(os.path.join(realtime_collect_dir, "queue"), exist_ok=True)
+
+        self.__realtime_collect_dir = realtime_collect_dir
+
+class WatchdogHandler:
+    def __init__(self, afl, observer):
+        # AFL parent class
+        self.afl = afl
+        self._handlers = []
+        self._my_observer = observer
+
+    def dispatch(self, event):
+
+        if isinstance(event, watchdog.events.DirCreatedEvent):
+            return self._dispatch_new_dir(event)
+
+        if not isinstance(event, watchdog.events.FileModifiedEvent):
+            return
+
+        # handler.event.event_type == 'modified' and not handler.event.is_directory
+
+        type_of = os.path.basename(os.path.dirname(event.src_path))
+        logger.debug('New input discovered: ' + type_of + ': ' + repr(event))
+
+        with open(event.src_path, 'rb') as f:
+            data = f.read()
+
+        fhash = hashlib.sha256(data).hexdigest()
+
+        with open(os.path.join(self.afl.realtime_collect_dir, type_of, fhash), 'wb') as f:
+            f.write(data)
+
+
+    def _dispatch_new_dir(self, event):
+        """Using this to catch the setup of new sync/output/crash directories."""
+
+        logger.debug('New dir: ' + repr(event))
+        dirname = os.path.basename(event.src_path)
+
+        if dirname.startswith('fuzzer-'):
+
+            watchdog_observer = watchdog.observers.Observer()
+            watchdog_handler = WatchdogHandler(self.afl, watchdog_observer)
+
+            watchdog_observer.schedule(watchdog_handler, os.path.join(event.src_path, 'crashes'), recursive=False)
+            watchdog_observer.schedule(watchdog_handler, os.path.join(event.src_path, 'queue'), recursive=False)
+            
+            # Race condition with AFL creating the directory structure
+            sleep(0.1)
+            logger.debug('Starting monitor for dirs: ' + os.path.join(event.src_path, 'crashes') + ' ' + os.path.join(event.src_path, 'queue'))
+            watchdog_observer.start()
+            atexit.register(watchdog_observer.stop)
+
+            # Keep it in a list so it doesn't get garbage collected
+            self._handlers += [watchdog_handler, watchdog_observer]

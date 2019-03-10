@@ -76,7 +76,7 @@ class BinInfo:
 
         # Fortify
         #if any(self._cfg.functions[func].name.endswith("_chk") for func in self._cfg.functions):
-        if any(sym.demangled_name.endswith("_chk") for sym in GlobalConfig.proj.loader.main_object.symbols_by_addr.values()):
+        if any(sym.demangled_name.endswith("_chk") for sym in GlobalConfig.proj.loader.main_object.symbols):
             self.fortify = True
             row.append(colored("Enabled","green"))
         else:
@@ -85,7 +85,7 @@ class BinInfo:
 
         # ASAN
         #if any(self._cfg.functions[func].name.startswith("__asan_") for func in self._cfg.functions):
-        if any(sym.demangled_name.startswith("__asan_") for sym in GlobalConfig.proj.loader.main_object.symbols_by_addr.values()):
+        if any(sym.demangled_name.startswith("__asan_") for sym in GlobalConfig.proj.loader.main_object.symbols):
             self.asan = True
             table.add_column("ASAN","")
             row.append(colored("Enabled","yellow"))
@@ -95,7 +95,7 @@ class BinInfo:
 
         # MSAN
         #if any(self._cfg.functions[func].name.startswith("__msan_") for func in self._cfg.functions):
-        if any(sym.demangled_name.startswith("__msan_") for sym in GlobalConfig.proj.loader.main_object.symbols_by_addr.values()):
+        if any(sym.demangled_name.startswith("__msan_") for sym in GlobalConfig.proj.loader.main_object.symbols):
             self.msan = True
             table.add_column("MSAN","")
             row.append(colored("Enabled","yellow"))
@@ -105,7 +105,7 @@ class BinInfo:
 
         # UBSAN
         #if any(self._cfg.functions[func].name.startswith("__ubsan_'") for func in self._cfg.functions):
-        if any(sym.demangled_name.startswith("__ubsan_") for sym in GlobalConfig.proj.loader.main_object.symbols_by_addr.values()):
+        if any(sym.demangled_name.startswith("__ubsan_") for sym in GlobalConfig.proj.loader.main_object.symbols):
             self.ubsan = True
             table.add_column("UBSAN","")
             row.append(colored("Enabled","yellow"))
@@ -115,7 +115,7 @@ class BinInfo:
 
         # AFL
         #if any(self._cfg.functions[func].name.startswith("__afl_") for func in self._cfg.functions):
-        if any(sym.demangled_name.startswith("__afl_") for sym in GlobalConfig.proj.loader.main_object.symbols_by_addr.values()):
+        if any(sym.demangled_name.startswith("__afl_") for sym in GlobalConfig.proj.loader.main_object.symbols):
             self.afl = True
             table.add_column("AFL","")
             row.append(colored("Enabled","yellow"))
