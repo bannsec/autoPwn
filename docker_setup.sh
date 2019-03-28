@@ -123,7 +123,8 @@ function install_seccomp_filter () {
 function install_py3pwntools () {
 
     su -c "
-        . /home/angr/.virtualenvs/angr/bin/activate;
+        virtualenv --python=$(which python3) /home/angr/.virtualenvs/pwntools;
+        . /home/angr/.virtualenvs/pwntools/bin/activate;
         pip install https://github.com/Gallopsled/pwntools/archive/dev3.zip
     " angr
 }
@@ -164,8 +165,10 @@ install_libdislocator
 update_shellphish_afl
 install_seccomp_filter
 install_py3pwntools
-install_ghidra
 fixup_ipython
 
 # Make sure this is the last thing we do in bashrc
 echo workon angr >> /home/angr/.bashrc
+
+# Workon is fucking up my PATH for some reason.. Doing this after.
+install_ghidra
