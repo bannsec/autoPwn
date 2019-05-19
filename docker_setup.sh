@@ -163,6 +163,11 @@ function install_angr_targets () {
     " angr
 }
 
+function install_frida () {
+    # TODO: Installing this gobally for now, since i want to be able to use it from anywhere.
+    pip3 install frida frida-tools
+}
+
 #
 #
 #
@@ -181,6 +186,7 @@ update_shellphish_afl
 install_seccomp_filter
 install_py3pwntools
 install_angr_targets
+install_frida
 fixup_ipython
 
 # Make sure this is the last thing we do in bashrc
