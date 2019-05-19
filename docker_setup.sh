@@ -149,6 +149,20 @@ function fixup_ipython () {
     " angr
 }
 
+function install_angr_targets () {
+    # TODO: Remove this once angr_targets is in the default angr dev pull
+
+    su -c "
+        mkdir -p ~/opt;
+        cd ~/opt;
+        . /home/angr/.virtualenvs/angr/bin/activate;
+        git clone https://github.com/angr/angr-targets.git;
+        cd angr-targets;
+        pip install -e .;
+        
+    " angr
+}
+
 #
 #
 #
@@ -166,6 +180,7 @@ install_libdislocator
 update_shellphish_afl
 install_seccomp_filter
 install_py3pwntools
+install_angr_targets
 fixup_ipython
 
 # Make sure this is the last thing we do in bashrc
