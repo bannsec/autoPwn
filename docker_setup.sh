@@ -78,7 +78,8 @@ function install_r2 () {
         echo \"export PATH=\\\$PATH:\\\$HOME/bin\" >> ~/.bashrc;
         export PATH=\$PATH:\$HOME/bin;
         r2pm init;
-        r2pm install lang-python3;
+        r2pm update;
+        sudo \$(which r2pm) install lang-python;
         sudo \$(which r2pm) install r2api-python;
         pip3 install r2pipe;
     " angr
