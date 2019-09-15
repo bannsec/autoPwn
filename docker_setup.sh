@@ -82,6 +82,7 @@ function install_r2 () {
         sudo \$(which r2pm) install lang-python;
         sudo \$(which r2pm) install r2api-python;
         pip3 install r2pipe;
+        sudo chown -R angr:angr /home/angr/.local/share/radare2;
     " angr
 }
 
