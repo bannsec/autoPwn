@@ -5,10 +5,24 @@ function apt_update () {
 
     # Removing GDB here to compile it later..
     apt-get remove -y gdb*
-    apt-get update -y
-    apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils g++-multilib libc6-dev-i386 valabind valac swig graphviz xdot net-tools htop netcat ltrace
+    apt-get dist-update -y
+    apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils g++-multilib libc6-dev-i386 valabind valac swig graphviz xdot net-tools htop netcat ltrace wget curl python python-pip python3 python3-pip
 
     echo "alias ltrace='ltrace -C -f -n 5 -s 512 -S -i'" >> /home/angr/.bashrc
+    echo export PATH=/home/angr/bin:\$PATH >> /home/angr/.bashrc
+}
+
+function install_cmake () {
+    echo "Installing cmake"
+
+    mkdir -p /opt/cmake
+    cd /opt/cmake
+    CMAKE_URL=`wget -q -O- https://cmake.org/download/ | grep -Po "https://.*?Linux-x86_64.sh" | head -1`
+    wget -O cmake.sh $CMAKE_URL
+    chmod +x cmake.sh
+    yes | ./cmake.sh --skip-license
+    rm cmake.sh
+    cp -r * /usr/local/.
 }
 
 function build_install_gdb () {
@@ -83,6 +97,8 @@ function install_r2 () {
         sudo \$(which r2pm) install r2api-python;
         pip3 install r2pipe;
         sudo chown -R angr:angr /home/angr/.local/share/radare2;
+        r2pm install r2ghidra-dec;
+        echo e cmd.pdc=pdg >> ~/.radare2rc
     " angr
 }
 
@@ -179,6 +195,7 @@ apt_update
 #build_install_gdb
 #install_radamsa
 
+install_cmake
 setup_patchkit
 install_autopwn
 install_r2
