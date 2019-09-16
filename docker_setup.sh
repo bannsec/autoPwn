@@ -1,11 +1,17 @@
 #!/bin/bash
 
+function remove_workon() {
+    echo "Removing base workon"
+    sed -i 's/workon angr//g' /home/angr/.bashrc
+}
+
 function apt_update () {
     echo "Updating APT"
 
     # Removing GDB here to compile it later..
     apt-get remove -y gdb*
-    apt-get dist-update -y
+    apt-get update
+    apt-get dist-upgrade -y
     apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils g++-multilib libc6-dev-i386 valabind valac swig graphviz xdot net-tools htop netcat ltrace wget curl python python-pip python3 python3-pip
 
     echo "alias ltrace='ltrace -C -f -n 5 -s 512 -S -i'" >> /home/angr/.bashrc
@@ -70,8 +76,6 @@ function install_autopwn () {
         . /home/angr/.virtualenvs/angr/bin/activate && pip uninstall -y futures;
         pip install -U pip setuptools;
         cd /home/angr/autoPwn/ && pip install -e .;
-        echo \"autoPwn -h\" >> ~/.bashrc;
-        echo \"autoPwnCompile -h\" >> ~/.bashrc;
         cp /home/angr/autoPwn/gdbinit /home/angr/.gdbinit;
 
         # Install r2dbg fun stuff
@@ -99,6 +103,8 @@ function install_r2 () {
         sudo chown -R angr:angr /home/angr/.local/share/radare2;
         r2pm install r2ghidra-dec;
         echo e cmd.pdc=pdg >> ~/.radare2rc
+        echo e scr.utf8 = true >> ~/.radare2rc
+        echo e scr.utf8.curvy = true >> ~/.radare2rc
     " angr
 }
 
@@ -189,6 +195,7 @@ function install_frida () {
 #
 #
 
+remove_workon
 apt_update
 
 # These are in separate build stages now
@@ -209,6 +216,8 @@ fixup_ipython
 
 # Make sure this is the last thing we do in bashrc
 echo workon angr >> /home/angr/.bashrc
+echo "autoPwn -h" >> /home/angr/.bashrc;
+echo "autoPwnCompile -h" >> /home/angr/.bashrc;
 
 # Workon is fucking up my PATH for some reason.. Doing this after.
 install_ghidra
