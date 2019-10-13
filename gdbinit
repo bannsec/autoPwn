@@ -59,3 +59,13 @@ exec(open(activate_this_file,"r").read(), dict(__file__=activate_this_file))
 import angrgdb.commands
 
 end
+
+python
+import os
+
+# Recursively add in src debug directories
+for r, d, _ in os.walk("/opt/dbgsrc/"):
+    for d2 in d:
+        gdb.execute("directory " + os.path.join(r,d2))
+end
+
