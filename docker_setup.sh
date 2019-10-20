@@ -208,6 +208,7 @@ function install_frida () {
 
 remove_workon
 apt_update
+download_sources
 
 # These are in separate build stages now
 #build_install_gdb
