@@ -167,7 +167,7 @@ function install_py3pwntools () {
 function install_ghidra () {
     
     su -c "
-        cd /opt/ghidra* && echo export PATH=\\\$PATH:\$PWD:\$PWD/server:\$PWD/support >> /home/angr/.bashrc && \
+        cd /opt/ghidra* && echo export PATH=\\\$PATH:\$PWD:\$PWD/server:\$PWD/support >> /home/angr/.bashrc
     " angr
 
 }
