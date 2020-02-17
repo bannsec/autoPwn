@@ -27,7 +27,7 @@ def main():
     SANS.add_argument('--ASAN', action='store_true', default=False,
                         help = "Enable ASAN (default off)")
     SANS.add_argument('--MSAN', action='store_true', default=False,
-                        help = "Enable MSAN (default off)")
+                        help = "Enable MSAN (default off) Note: EVERY LIBRARY this project uses must be compiled with MSAN. Otherwise it will give invalid errors.")
     parser.add_argument('--UBSAN', action='store_true', default=False,
                         help = "Enable UBSAN (default off)")
     parser.add_argument('--fuzzer', default='AFL', type=str,
