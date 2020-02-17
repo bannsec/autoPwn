@@ -15,10 +15,11 @@ function apt_update () {
     apt-get remove -y gdb*
     apt-get update
     apt-get dist-upgrade -y
-    apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils g++-multilib libc6-dev-i386 valabind valac swig graphviz xdot net-tools htop netcat ltrace wget curl python python-pip python3 python3-pip libbabeltrace1 libipt1 libc6-dbg openjdk-11-jdk psmisc
+    apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils g++-multilib libc6-dev-i386 valabind valac swig graphviz xdot net-tools htop netcat ltrace wget curl python python-pip python3 python3-pip libbabeltrace1 libipt1 libc6-dbg openjdk-11-jdk psmisc clang-9
 
     echo "alias ltrace='ltrace -C -f -n 5 -s 512 -S -i'" >> /home/angr/.bashrc
     echo export PATH=/home/angr/bin:\$PATH >> /home/angr/.bashrc
+    echo export PATH=/usr/lib/llvm-9/bin/:\$PATH >> /home/angr/.bashrc
 }
 
 function download_sources () {

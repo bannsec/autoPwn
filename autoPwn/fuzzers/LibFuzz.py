@@ -85,6 +85,9 @@ class LibFuzz(Fuzzer):
             # TODO: Also experimental. Maybe make option flag for this.
             execute.append("-fsanitize-memory-track-origins")
 
+            # This will add a bunch of compiler warnings, but seems like the most reliable way to get libcxx linked in
+            execute.append("-Wl,-rpath,/opt/libcxx_msan/")
+
         if UBSAN:
             fuzz_options.append("signed-integer-overflow")
 
