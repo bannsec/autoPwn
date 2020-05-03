@@ -161,7 +161,7 @@ function install_py3pwntools () {
     su -c "
         virtualenv --python=$(which python3) /home/angr/.virtualenvs/pwntools;
         . /home/angr/.virtualenvs/pwntools/bin/activate;
-        pip install https://github.com/Gallopsled/pwntools/archive/dev3.zip
+        pip install formatStringExploiter
     " angr
 }
 
