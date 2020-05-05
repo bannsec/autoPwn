@@ -1,3 +1,5 @@
+![Daily Build Trigger](https://github.com/bannsec/autoPwn/workflows/Daily%20Build%20Trigger/badge.svg)
+
 # Warning
 Completely re-writing this right now. Focus will be on interactive Linux apps that only take input from stdin for starters. Attempting to use Shellphish's Driller and Fuzzer functionality.
 

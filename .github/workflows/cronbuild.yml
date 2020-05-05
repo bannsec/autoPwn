@@ -1,0 +1,21 @@
+on: 
+    schedule:
+        - cron:  '0 2 * * *'
+
+name: Daily Build Trigger
+jobs:
+
+    build:
+      name: Trigger Build
+      runs-on: ubuntu-18.04
+  
+      steps:
+  
+      - name: Install curl
+        run: |
+            sudo apt update  && \
+            sudo apt install -y curl
+      - name: Send trigger
+        env:
+            TRIGGER_URL: ${{ secrets.TRIGGER_URL }}
+        run: if [[ "`curl -X POST $TRIGGER_URL`" == *"autotests"* ]]; then true; else false; fi
