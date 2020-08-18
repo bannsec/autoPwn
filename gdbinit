@@ -1,10 +1,10 @@
-def n32
+define n32
 stepi
 x/10i $eip
 i r
 end
 
-def n64
+define n64
 stepi
 x/10i $rip
 i r
