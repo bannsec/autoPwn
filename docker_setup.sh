@@ -1,12 +1,14 @@
 #!/bin/bash
 
+set -e
+
 function remove_workon() {
-    echo "Removing base workon"
+    echo "=== STEP: Removing base workon"
     sed -i 's/workon angr//g' /home/angr/.bashrc
 }
 
 function apt_update () {
-    echo "Updating APT"
+    echo "=== STEP: Updating APT"
 
     # Enable deb-src
     sed -i 's/^\#.*deb-src /deb-src /g' /etc/apt/sources.list
@@ -15,23 +17,27 @@ function apt_update () {
     apt-get remove -y gdb*
     apt-get update
     apt-get dist-upgrade -y
-    apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils g++-multilib libc6-dev-i386 valabind valac swig graphviz xdot net-tools htop netcat ltrace wget curl python python-pip python3 python3-pip libbabeltrace1 libipt1 libc6-dbg openjdk-11-jdk psmisc clang-9
+    apt-get install -y byacc bison flex python2.7-dev texinfo build-essential gcc g++ git libncurses5-dev libmpfr-dev pkg-config libipt-dev libbabeltrace-ctf-dev coreutils g++-multilib libc6-dev-i386 valabind valac swig graphviz xdot net-tools htop netcat ltrace wget curl python python3 python3-pip libbabeltrace1 libipt2 libc6-dbg openjdk-11-jdk psmisc clang-9 sudo libncurses5 strace
 
     echo "alias ltrace='ltrace -C -f -n 5 -s 512 -S -i'" >> /home/angr/.bashrc
     echo export PATH=/home/angr/bin:\$PATH >> /home/angr/.bashrc
     echo export PATH=/usr/lib/llvm-9/bin/:\$PATH >> /home/angr/.bashrc
+    echo 'angr ALL=(ALL) NOPASSWD:ALL' | EDITOR='tee -a' visudo
 }
 
 function download_sources () {
+    echo "=== STEP: Downloading Sources"
     mkdir -p /opt/dbgsrc
     cd /opt/dbgsrc
-    apt-get source libc6
+    #apt-get source libc6
+    apt-get source glibc
     # Clean up the source tar files
-    rm -f glibc*
+    #rm -f glibc*
+    find . -maxdepth 1 -type f -iname 'glibc*' -exec rm -f {} \;
 }
 
 function install_cmake () {
-    echo "Installing cmake"
+    echo "=== STEP: Installing cmake"
 
     mkdir -p /opt/cmake
     cd /opt/cmake
@@ -40,11 +46,12 @@ function install_cmake () {
     chmod +x cmake.sh
     yes | ./cmake.sh --skip-license
     rm cmake.sh
-    cp -r * /usr/local/.
+    #cp -r * /usr/local/.
+    find . -maxdepth 1 -type d -iwholename './*' -exec mkdir -p /usr/local/{} \; -exec cp -r {}/. /usr/local/{}/. \;
 }
 
 function build_install_gdb () {
-    echo "Building and installing gdb"
+    echo "=== STEP: Building and installing gdb"
 
     mkdir -p /opt
     cd /opt
@@ -58,7 +65,7 @@ function build_install_gdb () {
 }
 
 function install_radamsa () {
-    echo "Building and installing radamsa"
+    echo "=== STEP: Building and installing radamsa"
 
     cd /opt
     git clone https://gitlab.com/akihe/radamsa.git
@@ -69,7 +76,7 @@ function install_radamsa () {
 
 
 function setup_patchkit () {
-    echo "Setting up patchkit"
+    echo "=== STEP: Setting up patchkit"
 
     su -c " 
         virtualenv --python=$(which python2) /home/angr/.virtualenvs/patchkit;
@@ -82,6 +89,7 @@ function setup_patchkit () {
 }
 
 function install_autopwn () {
+    echo "=== STEP: Install AutoPwn"
 
     # Futures causes issues with gdb import
     su -c "
@@ -95,7 +103,11 @@ function install_autopwn () {
     " angr
 }
 
+# /home/angr/.local/share/radare2/r2pm/git/radare2-rlang
+# PKG_CONFIG_PATH=$HOME/bin/prefix/radare2/lib/pkgconfig
+# r2pm install r2api-python; <-- requires valabind-cc which doesn't exist in valabind on Focal apparently
 function install_r2 () {
+    echo "=== STEP: Install R2"
 
     su -c "
         pip3 install --user r2pipe;
@@ -109,8 +121,9 @@ function install_r2 () {
         export PATH=\$PATH:\$HOME/bin;
         r2pm init;
         r2pm update;
-        sudo \$(which r2pm) install lang-python;
-        sudo \$(which r2pm) install r2api-python;
+        sudo \$(which r2pm) init;
+        sudo \$(which r2pm) update;
+        r2pm install rlang-python || cd /home/angr/.local/share/radare2/r2pm/git/radare2-rlang && PKG_CONFIG_PATH=/home/angr/bin/prefix/radare2/lib/pkgconfig ./configure && r2pm install rlang-python;
         pip3 install r2pipe;
         sudo chown -R angr:angr /home/angr/.local/share/radare2;
         r2pm install r2ghidra-dec;
@@ -121,6 +134,7 @@ function install_r2 () {
 }
 
 function install_libdislocator () {
+    echo "=== STEP: Install LibDislocator"
 
     su -c "
         cd ~/opt;
@@ -138,6 +152,7 @@ function install_libdislocator () {
 }
 
 function update_shellphish_afl () {
+    echo "=== STEP: Install Shellphish AFL"
     # TODO :Remove this once pypi version of shellphish-afl is on 2.52b
 
     su -c "
@@ -149,6 +164,7 @@ function update_shellphish_afl () {
 }
 
 function install_seccomp_filter () {
+    echo "=== STEP: Install Seccomp filter"
     apt-get install -y gcc ruby-dev
     gem install seccomp-tools
 
@@ -157,6 +173,7 @@ function install_seccomp_filter () {
 }
 
 function install_py3pwntools () {
+    echo "=== STEP: Install py3pwntools"
 
     su -c "
         virtualenv --python=$(which python3) /home/angr/.virtualenvs/pwntools;
@@ -166,6 +183,7 @@ function install_py3pwntools () {
 }
 
 function install_ghidra () {
+    echo "=== STEP: Install Ghidra"
     
     su -c "
         cd /opt/ghidra* && echo export PATH=\\\$PATH:\$PWD:\$PWD/server:\$PWD/support >> /home/angr/.bashrc
@@ -173,7 +191,9 @@ function install_ghidra () {
 
 }
 
+# No "pip" references anymore
 function fixup_ipython () {
+    echo "=== STEP: Fix ipython"
     # Move ipython into virtualenvs instead of outside
 
     su -c "
@@ -184,20 +204,19 @@ function fixup_ipython () {
 }
 
 function install_angr_targets () {
+    echo "=== STEP: Install optional angr packages"
+    # fuzzer is deprecated. "phuzzer" is the current one
     # TODO: Remove this once angr_targets is in the default angr dev pull
 
     su -c "
-        mkdir -p ~/opt;
-        cd ~/opt;
+        cd ~/angr-dev;
         . /home/angr/.virtualenvs/angr/bin/activate;
-        git clone https://github.com/angr/angr-targets.git;
-        cd angr-targets;
-        pip install -e .;
-        
+        ./setup.sh fuzzer phuzzer rex;
     " angr
 }
 
 function install_frida () {
+    echo "=== STEP: Install frida"
     # TODO: Installing this gobally for now, since i want to be able to use it from anywhere.
     pip3 install frida frida-tools
 }

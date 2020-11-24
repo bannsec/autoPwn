@@ -1,4 +1,4 @@
-FROM shellphish/mechaphish
+FROM angr/angr
 #FROM bannsec/mechaphish
 
 USER root
