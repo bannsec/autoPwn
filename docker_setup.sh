@@ -211,7 +211,7 @@ function install_angr_targets () {
     su -c "
         cd ~/angr-dev;
         . /home/angr/.virtualenvs/angr/bin/activate;
-        ./setup.sh fuzzer phuzzer rex;
+        ./setup.sh fuzzer phuzzer rex driller;
     " angr
 }
 

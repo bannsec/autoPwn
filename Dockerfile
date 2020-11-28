@@ -12,4 +12,4 @@ COPY --chown=angr:angr . /home/angr/autoPwn/.
 RUN /home/angr/autoPwn/docker_setup.sh
 
 USER angr
-RUN ["/bin/bash"]
+CMD ["/bin/bash"]
