@@ -41,7 +41,7 @@ function install_cmake () {
 
     mkdir -p /opt/cmake
     cd /opt/cmake
-    CMAKE_URL=`wget -q -O- https://cmake.org/download/ | grep -Po "https://.*?Linux-x86_64.sh" | head -1`
+    CMAKE_URL=`wget -q -O- https://cmake.org/download/ | grep -Po "https://.*?linux-x86_64.sh" | head -1`
     wget -O cmake.sh $CMAKE_URL
     chmod +x cmake.sh
     yes | ./cmake.sh --skip-license
